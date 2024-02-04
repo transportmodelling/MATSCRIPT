@@ -5,7 +5,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, Classes, ArrayHlp, PropSet, matio, matio.formats, matio.io;
+  SysUtils, Classes, ArrayHlp, PropSet, Ranges, matio, matio.formats, matio.io;
 
 Type
   TFileStatus = (fsUnused,fsIndexed,fsLabeled);
@@ -349,7 +349,7 @@ begin
   var MatrixId := Arguments.ToInt('id');
   RegisterMatrix(MatrixId);
   // Create matrix
-  var MatrixIds := Arguments.Parse('matrices').ToIntArray;
+  var MatrixIds := TRanges.Create(Arguments['matrices']).Values;
   var MergedMatrix := TMergedMatrixRow.Create(Size);
   for var Matrix := low(MatrixIds) to high(MatrixIds) do
   if (MatrixIds[Matrix] > 0) and (MatrixIds[Matrix] < Length(MatrixIndices)) then
@@ -376,7 +376,7 @@ Var
   MatrixTags: array of String;
 begin
   var FileLabel := Arguments.ToStr('label','');
-  var FileMatrices := Arguments.Parse('matrices').ToIntArray;
+  var FileMatrices := TRanges.Create(Arguments['matrices']).Values;
   if FileMatrices.Length > 0 then
   begin
     var OutputMatrixFile := TOutputMatrixFile.Create;

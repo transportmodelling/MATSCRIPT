@@ -5,7 +5,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, Classes, ArrayHlp, PropSet, Ranges, matio, matio.formats, matio.io;
+  SysUtils, Classes, Log, ArrayHlp, PropSet, Ranges, matio, matio.formats, matio.io;
 
 Type
   TFileStatus = (fsUnused,fsIndexed,fsLabeled);
@@ -73,6 +73,17 @@ Type
     Function GetValues(Column: Integer): Float64; override;
   end;
 
+  TMatrixTotal = Class
+  private
+    TotalLabel: String;
+    Size: Integer;
+    Total: Float64;
+    Rows,Columns: TRanges;
+    Matrices: array of TVirtualMatrixRow;
+    Procedure Update(Row: Integer);
+    Procedure ListTotal;
+  end;
+
   TOutputMatrixFile = Class
   private
     Matrices: array of TVirtualMatrixRow;
@@ -90,6 +101,7 @@ Type
     MatrixIndices: array {matrix id} of Integer;
     Tags: array {matrix index} of String;
     Matrices: array {matrix index} of TVirtualMatrixRow;
+    MatrixTotals: array {matrix total} of TMatrixTotal;
     OutputMatrixFiles: array of TOutputMatrixFile;
     Procedure RegisterMatrix(const MatrixId: Integer);
     Procedure CreateInputMatrix(const [ref] Arguments: TPropertySet; const FileIndex: Integer);
@@ -99,6 +111,7 @@ Type
     Procedure InterpretConstCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretScaleCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretMergeCommand(const [ref] Arguments: TPropertySet);
+    Procedure InterpretSumCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretWriteCommand(const [ref] Arguments: TPropertySet);
     Function InterpretLine(const Command,Arguments: String): Boolean;
     Procedure InterpretLines(const ScriptFileName: String);
@@ -112,6 +125,7 @@ implementation
 
 Procedure TInputMatrixFile.OpenFile(Size: Integer);
 begin
+  LogFile.InputFile(Id.ToString,FileProperties.ToPath(TMatrixFormat.FileProperty));
   case Selection.Status of
     fsIndexed: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Indices.Selection,Size);
     fsLabeled: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Labels.Selection,Size);
@@ -163,6 +177,27 @@ Function TMergedMatrixRow.GetValues(Column: Integer): Float64;
 begin
   Result := 0.0;
   for var Matrix := low(Matrices) to high(Matrices) do Result := Result + Matrices[Matrix].Values[Column];
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+
+Procedure TMatrixTotal.Update(Row: Integer);
+begin
+  if Rows.Contains(Row) then
+  for var Column := 0 to Size-1 do
+  if Columns.Contains(Column+1) then
+  for var Matrix := low(Matrices) to high(Matrices) do
+  Total := Total + Matrices[Matrix].Values[Column];
+end;
+
+Procedure TMatrixTotal.ListTotal;
+begin
+  if Abs(Total) < 1 then LogFile.Log(TotalLabel + ': ' + FormatFloat('0.#####',Total)) else
+  if Abs(Total) < 10 then LogFile.Log(TotalLabel + ': ' + FormatFloat('0.####',Total)) else
+  if Abs(Total) < 100 then LogFile.Log(TotalLabel + ': ' + FormatFloat('0.###',Total)) else
+  if Abs(Total) < 1000 then LogFile.Log(TotalLabel + ': ' + FormatFloat('0.##',Total)) else
+  if Abs(Total) < 10000 then LogFile.Log(TotalLabel + ': ' + FormatFloat('0.#',Total)) else
+  LogFile.Log(TotalLabel + ': ' + FormatFloat('0',Total));
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -261,6 +296,10 @@ end;
 Procedure TScriptInterpreter.InterpretInitCommand(const [ref] Arguments: TPropertySet);
 begin
   Size := Arguments.ToInt('size');
+  if Arguments.Contains('log') then
+    LogFile := TLogFile.Create(Arguments.ToPath('log'),true)
+  else
+    LogFile := TLogFile.Create
 end;
 
 Procedure TScriptInterpreter.InterpretReadCommand(const [ref] Arguments: TPropertySet);
@@ -371,6 +410,53 @@ begin
   Matrices := Matrices + [MergedMatrix];
 end;
 
+Procedure TScriptInterpreter.InterpretSumCommand(const [ref] Arguments: TPropertySet);
+Var
+  RowSelection,ColumnSelection: String;
+begin
+  var TotalLabel := Arguments['label'];
+  if TotalLabel <> '' then
+  begin
+    var MatrixIds := TRanges.Create(Arguments['matrices']).Values;
+    if Length(MatrixIds) > 0 then
+    begin
+      var MatrixTotal := TMatrixTotal.Create;
+      MatrixTotal.Size := Size;
+      MatrixTotal.TotalLabel := TotalLabel;
+      // Ser selected rows
+      if Arguments.Contains('rows',RowSelection) then
+        MatrixTotal.Rows := TRanges.Create(RowSelection)
+      else
+        MatrixTotal.Rows := TRanges.Create([TRange.Create(1,Size)]);
+      // Set selected columns
+      if Arguments.Contains('columns',ColumnSelection) then
+        MatrixTotal.Columns := TRanges.Create(ColumnSelection)
+      else
+        MatrixTotal.Columns := TRanges.Create([TRange.Create(1,Size)]);
+      // Set matrix selection
+      for var Matrix := low(MatrixIds) to high(MatrixIds) do
+      if (MatrixIds[Matrix] > 0) and (MatrixIds[Matrix] <= Length(MatrixIndices)) then
+      begin
+        var MatrixIndex := MatrixIndices[MatrixIds[Matrix]-1];
+        if MatrixIndex >= 0 then
+          MatrixTotal.Matrices := MatrixTotal.Matrices + [Matrices[MatrixIndex]]
+        else
+          begin
+            MatrixTotal.Free;
+            raise Exception.Create('Invalid matrix id' + MatrixIds[Matrix].ToString);
+          end;
+      end else
+      begin
+        MatrixTotal.Free;
+        raise Exception.Create('Invalid matrix id' + MatrixIds[Matrix].ToString);
+      end;
+      MatrixTotals := MatrixTotals + [MatrixTotal];
+    end else
+      raise Exception.Create('No matrices selected');
+  end else
+    raise exception.Create('Invalid matrix total label');
+end;
+
 Procedure TScriptInterpreter.InterpretWriteCommand(const [ref] Arguments: TPropertySet);
 Var
   MatrixTags: array of String;
@@ -402,6 +488,7 @@ begin
     end;
     OutputMatrixFile.Writer := MatrixFormats.CreateWriter(Arguments,FileLabel,MatrixTags,Size);
     OutputMatrixFiles := OutputMatrixFiles + [OutputMatrixFile];
+    LogFile.OutputFile(Length(OutputMatrixFiles).ToString,Arguments.ToPath(TMatrixFormat.FileProperty));
   end;
 end;
 
@@ -436,6 +523,11 @@ begin
   begin
     Result := true;
     InterpretMergeCommand(Arguments);
+  end else
+  if SameText(Command,'sum') then
+  begin
+    Result := true;
+    InterpretSumCommand(Arguments);
   end else
   if SameText(Command,'write') then
   begin
@@ -476,15 +568,23 @@ begin
   try
     InterpretLines(ScriptFileName);
     for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do InputMatrixFiles[MatrixFl].OpenFile(Size);
-    for var Origin := 0 to Size-1 do
+    for var Row := 0 to Size-1 do
     begin
       for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do InputMatrixFiles[MatrixFl].Reader.Read;
+      for var MatrixTotal := low(MatrixTotals) to high(MatrixTotals) do MatrixTotals[MatrixTotal].Update(Row+1);
       for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do OutputMatrixFiles[MatrixFl].Write;
+    end;
+    if Length(MatrixTotals) > 0 then
+    begin
+      LogFile.Log;
+      for var MatrixTotal := low(MatrixTotals) to high(MatrixTotals) do MatrixTotals[matrixTotal].ListTotal;
     end;
   finally
     for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do InputMatrixFiles[MatrixFl].Free;
     for var Matrix := low(Matrices) to high(Matrices) do Matrices[Matrix].Free;
+    for var MatrixTotal := low(MatrixTotals) to high(MatrixTotals) do MatrixTotals[MatrixTotal].Free;
     for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do OutputMatrixFiles[MatrixFl].Free;
+    LogFile.Free;
   end;
 end;
 

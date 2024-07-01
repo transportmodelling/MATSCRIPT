@@ -73,6 +73,13 @@ Type
     Function GetValues(Column: Integer): Float64; override;
   end;
 
+  TDifferenceMatrixRow = Class(TMatrixRow)
+  private
+    Minuend,Subtrahend: TVirtualMatrixRow;
+  strict protected
+    Function GetValues(Column: Integer): Float64; override;
+  end;
+
   TMatrixTotal = Class
   private
     TotalLabel: String;
@@ -111,6 +118,7 @@ Type
     Procedure InterpretConstCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretScaleCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretMergeCommand(const [ref] Arguments: TPropertySet);
+    Procedure InterpretSubtractCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretSumCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretWriteCommand(const [ref] Arguments: TPropertySet);
     Function InterpretLine(const Command,Arguments: String): Boolean;
@@ -177,6 +185,13 @@ Function TMergedMatrixRow.GetValues(Column: Integer): Float64;
 begin
   Result := 0.0;
   for var Matrix := low(Matrices) to high(Matrices) do Result := Result + Matrices[Matrix].Values[Column];
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+
+Function TDifferenceMatrixRow.GetValues(Column: Integer): Float64;
+begin
+  Result := Minuend[Column]-Subtrahend[Column];
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -410,6 +425,31 @@ begin
   Matrices := Matrices + [MergedMatrix];
 end;
 
+Procedure TScriptInterpreter.InterpretSubtractCommand(const [ref] Arguments: TPropertySet);
+begin
+  // Register matrix
+  var MatrixId := Arguments.ToInt('id');
+  RegisterMatrix(MatrixId);
+  // Create matrix
+  var Minuend := Arguments.ToInt('minuend');
+  if (Minuend > 0) and (Minuend < Length(MatrixIndices)) then
+  begin
+    var MinuendIndex := MatrixIndices[Minuend-1];
+    var Subtrahend := Arguments.ToInt('subtrahend');
+    if (Subtrahend > 0) and (Subtrahend < Length(MatrixIndices)) then
+    begin
+      var SubtrahendIndex := MatrixIndices[Subtrahend-1];
+      var DifferenceMatrix := TDifferenceMatrixRow.Create(Size);
+      DifferenceMatrix.Minuend := Matrices[MinuendIndex];
+      DifferenceMatrix.Subtrahend := Matrices[SubtrahendIndex];
+      Tags := Tags + [Arguments.ToStr('tag',MatrixId.ToString)];
+      Matrices := Matrices + [DifferenceMatrix];
+    end else
+      raise Exception.Create('Invalid subtrahend matrix id');
+  end else
+    raise Exception.Create('Invalid minuend matrix id');
+end;
+
 Procedure TScriptInterpreter.InterpretSumCommand(const [ref] Arguments: TPropertySet);
 Var
   RowSelection,ColumnSelection: String;
@@ -523,6 +563,11 @@ begin
   begin
     Result := true;
     InterpretMergeCommand(Arguments);
+  end else
+  if SameText(Command,'subtract') then
+  begin
+    Result := true;
+    InterpretSubtractCommand(Arguments);
   end else
   if SameText(Command,'sum') then
   begin

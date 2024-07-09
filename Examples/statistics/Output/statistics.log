@@ -1,0 +1,57 @@
+START 7/9/2024 11:17:01 AM
+Executable: MATSCRIPT.exe; 7/9/2024 11:16:33 AM; 2248192 bytes
+Computer: PC04-SIG
+
+Matrices: 1
+Rows: 1-10
+Columns: 1-10
+Minimum: 0.49
+Maximum: 97.61
+Diagonal: 571.65
+Total: 5271.5
+
+Matrices: 1
+Rows: 1
+Columns: 1-10
+Minimum: 9.67
+Maximum: 75.7
+Diagonal: 28.81
+Total: 430.22
+
+Matrices: 2
+Rows: 1-10
+Columns: 1-10
+Minimum: 0.44
+Maximum: 99.44
+Diagonal: 504.58
+Total: 4846.9
+
+Matrices: 2
+Rows: 1-10
+Columns: 1
+Minimum: 18.25
+Maximum: 99.44
+Diagonal: 20.21
+Total: 574.42
+
+Matrices: 3
+Rows: 1-10
+Columns: 1-10
+Minimum: 0.42
+Maximum: 99.39
+Diagonal: 574.01
+Total: 5083.4
+
+Matrices: 1-3
+Rows: 1-10
+Columns: 1-10
+Minimum: 0.42
+Maximum: 99.44
+Diagonal: 1650.2
+Total: 15202
+
+Input files:
+1: F:\...\Examples\statistics\input\random1.csv; 1/14/2024 4:58:54 PM; 1098 bytes
+2: F:\...\Examples\statistics\input\random2.dat; 1/14/2024 4:58:54 PM; 1708 bytes
+
+STOP 7/9/2024 11:17:01 AM (Run time: 00:00:00)

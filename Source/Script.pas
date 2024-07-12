@@ -29,12 +29,13 @@ Type
           fsLabeled: (Labels: TMatrixLabelSelection);
       end;
     Var
-      Id: Integer;
+      Line: Integer;
       FileProperties: TPropertySet;
       Selection: TSelection;
       Reader: TMatrixRowsReader;
     Procedure OpenFile(Size: Integer);
   public
+    Function Used: Boolean;
     Destructor Destroy; override;
   end;
 
@@ -103,7 +104,8 @@ Type
 
   TScriptInterpreter = Class
   private
-    Size,MaxFileId,NFiles,MaxMatrixId,NMatrices: Integer;
+    FileName: String;
+    LineCount,Size,MaxFileId,NFiles,MaxMatrixId,NMatrices: Integer;
     FileIndices: array {file id} of Integer;
     InputMatrixFiles: array {file index} of TInputMatrixFile;
     MatrixIndices: array {matrix id} of Integer;
@@ -123,7 +125,7 @@ Type
     Procedure InterpretStatisticsCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretWriteCommand(const [ref] Arguments: TPropertySet);
     Function InterpretLine(const Command,Arguments: String): Boolean;
-    Procedure InterpretLines(const ScriptFileName: String);
+    Procedure InterpretLines;
   public
     Procedure Execute(const ScriptFileName: String);
   end;
@@ -134,11 +136,16 @@ implementation
 
 Procedure TInputMatrixFile.OpenFile(Size: Integer);
 begin
-  LogFile.InputFile(Id.ToString,FileProperties.ToPath(TMatrixFormat.FileProperty));
+  LogFile.InputFile('Line '+Line.ToString,FileProperties.ToPath(TMatrixFormat.FileProperty));
   case Selection.Status of
     fsIndexed: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Indices.Selection,Size);
     fsLabeled: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Labels.Selection,Size);
   end;
+end;
+
+Function TInputMatrixFile.Used: Boolean;
+begin
+  Result := (Selection.Status <> fsUnused);
 end;
 
 Destructor TInputMatrixFile.Destroy;
@@ -340,35 +347,46 @@ begin
   if Arguments.Contains('log') then
     LogFile := TLogFile.Create(Arguments.ToPath('log'),true)
   else
-    LogFile := TLogFile.Create
+    LogFile := TLogFile.Create;
+  LogFile.InputFile('Script',FileName);
 end;
 
 Procedure TScriptInterpreter.InterpretReadCommand(const [ref] Arguments: TPropertySet);
 begin
-  var FileId := Arguments.ToInt('id');
+  // Set file properties
+  var FileId := Arguments.ToInt('id',0);
+  SetLength(InputMatrixFiles,NFiles+1);
+  InputMatrixFiles[NFiles] := TInputMatrixFile.Create;
+  InputMatrixFiles[NFiles].Line := LineCount;
+  InputMatrixFiles[NFiles].Selection.Status := fsUnused;
+  InputMatrixFiles[NFiles].FileProperties := Arguments;
+  // Set file index
   if FileId > 0 then
   begin
-    // Allocate file indices
     if MaxFileId < FileId then
     begin
       SetLength(FileIndices,FileId);
       for var Id := MaxFileId to FileId-1 do FileIndices[Id] := -1;
       MaxFileId := FileId;
     end;
-    // Set file properties
     if FileIndices[FileId-1] < 0 then
-    begin
-      SetLength(InputMatrixFiles,NFiles+1);
-      InputMatrixFiles[NFiles] := TInputMatrixFile.Create;
-      InputMatrixFiles[NFiles].Id := FileId;
-      InputMatrixFiles[NFiles].Selection.Status := fsUnused;
-      InputMatrixFiles[NFiles].FileProperties := Arguments;
-      FileIndices[FileId-1] := NFiles;
-      Inc(NFiles);
-    end else
+      FileIndices[FileId-1] := NFiles
+    else
       raise Exception.Create('File Id ' + FileId.ToString + ' already used');
-  end else
-    raise Exception.Create('Invalid file id');
+  end;
+  // Create matrices
+  var MatrixIds := TRanges.Create(Arguments['ids']).Values;
+  for var Index := low(MatrixIds) to high(MatrixIds) do
+  if MatrixIds[Index] > 0 then
+  begin
+    RegisterMatrix(MatrixIds[Index]);
+    var MatrixProperties := TPropertySet.Create(false);
+    MatrixProperties.Append('index',(Index+1).ToString);
+    MatrixProperties.Append('id',MatrixIds[Index].ToString);
+    CreateInputMatrix(MatrixProperties,NFiles);
+  end;
+  // Increase files count
+  Inc(NFiles);
 end;
 
 Procedure TScriptInterpreter.InterpretMatrixCommand(const [ref] Arguments: TPropertySet);
@@ -545,7 +563,7 @@ begin
     end;
     OutputMatrixFile.Writer := MatrixFormats.CreateWriter(Arguments,FileLabel,MatrixTags,Size);
     OutputMatrixFiles := OutputMatrixFiles + [OutputMatrixFile];
-    LogFile.OutputFile(Length(OutputMatrixFiles).ToString,Arguments.ToPath(TMatrixFormat.FileProperty));
+    LogFile.OutputFile('Line: '+LineCount.ToString,Arguments.ToPath(TMatrixFormat.FileProperty));
   end;
 end;
 
@@ -599,11 +617,11 @@ begin
     Result := false;
 end;
 
-Procedure TScriptInterpreter.InterpretLines(const ScriptFileName: string);
+Procedure TScriptInterpreter.InterpretLines;
 begin
-  var ScriptReader := TStreamReader.Create(ScriptFileName);
+  var ScriptReader := TStreamReader.Create(FileName);
   try
-    var LineCount := 0;
+    LineCount := 0;
     while not ScriptReader.EndOfStream do
     begin
       var Line := Trim(ScriptReader.ReadLine);
@@ -628,11 +646,14 @@ end;
 Procedure TScriptInterpreter.Execute(const ScriptFileName: String);
 begin
   try
-    InterpretLines(ScriptFileName);
-    for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do InputMatrixFiles[MatrixFl].OpenFile(Size);
+    FileName := ScriptFileName;
+    InterpretLines;
+    for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
+    if InputMatrixFiles[MatrixFl].Used then InputMatrixFiles[MatrixFl].OpenFile(Size);
     for var Row := 0 to Size-1 do
     begin
-      for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do InputMatrixFiles[MatrixFl].Reader.Read;
+      for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
+      if InputMatrixFiles[MatrixFl].Used then InputMatrixFiles[MatrixFl].Reader.Read;
       for var Statistics := low(MatrixStatistics) to high(MatrixStatistics) do MatrixStatistics[Statistics].Update(Row+1);
       for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do OutputMatrixFiles[MatrixFl].Write;
     end;

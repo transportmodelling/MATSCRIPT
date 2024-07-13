@@ -81,16 +81,33 @@ Type
     Function GetValues(Column: Integer): Float64; override;
   end;
 
-  TMatrixStatistics = Class
+  TInfoLogger = Class
+  strict private
+    Function FloatToStr(const Float: Float64): string;
+  private
+    Procedure Update(Row: Integer); virtual; abstract;
+    Procedure LogInfo; virtual; abstract;
+  end;
+
+  TMatrixStatistics = Class(TInfoLogger)
   private
     Size: Integer;
     Min,Max,Diagonal,Total: Float64;
     Matrices,Rows,Columns: TRanges;
     MatrixRows: array of TVirtualMatrixRow;
     Constructor Create;
-    Procedure Update(Row: Integer);
-    Function FloatToStr(const Float: Float64): string;
-    Procedure ListStatistics;
+    Procedure Update(Row: Integer); override;
+    Procedure LogInfo; override;
+  end;
+
+  TSumOfAbsoluteDifferences = Class(TInfoLogger)
+  private
+    Size: Integer;
+    Matrices: TArray<Integer>;
+    SumOfAbsoluteDifferences: Float64;
+    MatrixRows: array[0..1] of TVirtualMatrixRow;
+    Procedure Update(Row: Integer); override;
+    Procedure LogInfo; override;
   end;
 
   TOutputMatrixFile = Class
@@ -111,7 +128,7 @@ Type
     MatrixIndices: array {matrix id} of Integer;
     Tags: array {matrix index} of String;
     Matrices: array {matrix index} of TVirtualMatrixRow;
-    MatrixStatistics: array {statistics} of TMatrixStatistics;
+    InfoLoggers: array {logger} of TInfoLogger;
     OutputMatrixFiles: array of TOutputMatrixFile;
     Procedure RegisterMatrix(const MatrixId: Integer);
     Procedure CreateInputMatrix(const [ref] Arguments: TPropertySet; const FileIndex: Integer);
@@ -123,6 +140,7 @@ Type
     Procedure InterpretMergeCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretSubtractCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretStatisticsCommand(const [ref] Arguments: TPropertySet);
+    Procedure InterpretSumOfAbsoluteDifferencesCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretWriteCommand(const [ref] Arguments: TPropertySet);
     Function InterpretLine(const Command,Arguments: String): Boolean;
     Procedure InterpretLines;
@@ -204,6 +222,18 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+Function TInfoLogger.FloatToStr(const Float: Float64): string;
+begin
+  if Abs(Float) < 1 then Result := FormatFloat('0.#####',Float) else
+  if Abs(Float) < 10 then Result := FormatFloat('0.####',Float) else
+  if Abs(Float) < 100 then Result := FormatFloat('0.###',Float) else
+  if Abs(Float) < 1000 then Result := FormatFloat('0.##',Float) else
+  if Abs(Float) < 10000 then Result := FormatFloat('0.#',Float) else
+  Result := FormatFloat('0',Float);
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+
 Constructor TMatrixStatistics.Create;
 begin
   inherited Create;
@@ -226,17 +256,7 @@ begin
   end;
 end;
 
-Function TMatrixStatistics.FloatToStr(const Float: Float64): string;
-begin
-  if Abs(Float) < 1 then Result := FormatFloat('0.#####',Float) else
-  if Abs(Float) < 10 then Result := FormatFloat('0.####',Float) else
-  if Abs(Float) < 100 then Result := FormatFloat('0.###',Float) else
-  if Abs(Float) < 1000 then Result := FormatFloat('0.##',Float) else
-  if Abs(Float) < 10000 then Result := FormatFloat('0.#',Float) else
-  Result := FormatFloat('0',Float);
-end;
-
-Procedure TMatrixStatistics.ListStatistics;
+Procedure TMatrixStatistics.LogInfo;
 begin
   LogFile.Log;
   LogFile.Log('Matrices: ' + Matrices.AsString);
@@ -246,6 +266,22 @@ begin
   LogFile.Log('Maximum: ' + FloatToStr(Max));
   LogFile.Log('Diagonal: ' + FloatToStr(Diagonal));
   LogFile.Log('Total: ' + FloatToStr(Total));
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+
+Procedure TSumOfAbsoluteDifferences.Update(Row: Integer);
+begin
+  for var Column := 0 to Size-1 do
+  SumOfAbsoluteDifferences := SumOfAbsoluteDifferences +
+    Abs(MatrixRows[0].Values[Column]-MatrixRows[1].Values[Column]);
+end;
+
+Procedure TSumOfAbsoluteDifferences.LogInfo;
+begin
+  LogFile.Log;
+  LogFile.Log('Matrices: ' + Matrices[0].ToString+','+Matrices[1].ToString);
+  LogFile.Log('Sum of absolute differences: ' + FloatToStr(SumOfAbsoluteDifferences));
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -529,7 +565,33 @@ begin
     Statistics.Columns := TRanges.Create(ColumnSelection)
   else
     Statistics.Columns := TRanges.Create([TRange.Create(1,Size)]);
-  MatrixStatistics := MatrixStatistics + [Statistics];
+  InfoLoggers := InfoLoggers + [Statistics];
+end;
+
+Procedure TScriptInterpreter.InterpretSumOfAbsoluteDifferencesCommand(const [ref] Arguments: TPropertySet);
+begin
+  var SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create;
+  SumOfAbsoluteDifferences.Size := Size;
+  SumOfAbsoluteDifferences.Matrices := TRanges.Create(Arguments['matrices']).Values;
+  if Length(SumOfAbsoluteDifferences.Matrices) = 2 then
+  begin
+    for var Matrix := 0 to 1 do
+    begin
+      var MatrixIndex := MatrixIndices[SumOfAbsoluteDifferences.Matrices[Matrix]-1];
+      if MatrixIndex >= 0 then
+        SumOfAbsoluteDifferences.MatrixRows[Matrix] := Matrices[MatrixIndex]
+      else
+        begin
+          SumOfAbsoluteDifferences.Free;
+          raise Exception.Create('Invalid matrix id' + Matrices[Matrix].ToString);
+        end;
+    end;
+    InfoLoggers := InfoLoggers + [SumOfAbsoluteDifferences];
+  end else
+  begin
+    SumOfAbsoluteDifferences.Free;
+    raise Exception.Create('Invalid number of matrices');
+  end;
 end;
 
 Procedure TScriptInterpreter.InterpretWriteCommand(const [ref] Arguments: TPropertySet);
@@ -604,6 +666,11 @@ begin
     Result := true;
     InterpretSubtractCommand(Arguments);
   end else
+  if SameText(Command,'sad') then
+  begin
+    Result := true;
+    InterpretSumOfAbsoluteDifferencesCommand(Arguments);
+  end else
   if SameText(Command,'stats') then
   begin
     Result := true;
@@ -654,14 +721,14 @@ begin
     begin
       for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
       if InputMatrixFiles[MatrixFl].Used then InputMatrixFiles[MatrixFl].Reader.Read;
-      for var Statistics := low(MatrixStatistics) to high(MatrixStatistics) do MatrixStatistics[Statistics].Update(Row+1);
+      for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do InfoLoggers[InfoLogger].Update(Row+1);
       for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do OutputMatrixFiles[MatrixFl].Write;
     end;
-    for var Statistics := low(MatrixStatistics) to high(MatrixStatistics) do MatrixStatistics[Statistics].ListStatistics;
+    for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do InfoLoggers[InfoLogger].LogInfo;
   finally
     for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do InputMatrixFiles[MatrixFl].Free;
     for var Matrix := low(Matrices) to high(Matrices) do Matrices[Matrix].Free;
-    for var Statistics := low(MatrixStatistics) to high(MatrixStatistics) do MatrixStatistics[Statistics].Free;
+    for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do InfoLoggers[InfoLogger].Free;
     for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do OutputMatrixFiles[MatrixFl].Free;
     LogFile.Free;
   end;

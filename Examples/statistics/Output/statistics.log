@@ -1,5 +1,5 @@
-START 7/12/2024 4:19:18 PM
-Executable: MATSCRIPT.exe; 7/12/2024 4:00:12 PM; 2264064 bytes
+START 7/13/2024 10:14:15 AM
+Executable: MATSCRIPT.exe; 7/13/2024 9:57:17 AM; 2266624 bytes
 Computer: PC04-SIG
 
 Matrices: 1
@@ -8,7 +8,7 @@ Columns: 1-10
 Minimum: 0.49
 Maximum: 97.61
 Diagonal: 571.65
-Total: 5271.5
+Total: 5271.53
 
 Matrices: 1
 Rows: 1
@@ -24,7 +24,7 @@ Columns: 1-10
 Minimum: 0.44
 Maximum: 99.44
 Diagonal: 504.58
-Total: 4846.9
+Total: 4846.87
 
 Matrices: 2
 Rows: 1-10
@@ -40,19 +40,22 @@ Columns: 1-10
 Minimum: 0.42
 Maximum: 99.39
 Diagonal: 574.01
-Total: 5083.4
+Total: 5083.37
 
 Matrices: 1-3
 Rows: 1-10
 Columns: 1-10
 Minimum: 0.42
 Maximum: 99.44
-Diagonal: 1650.2
-Total: 15202
+Diagonal: 1650.24
+Total: 15201.77
+
+Matrices: 2,3
+Sum of absolute differences: 3425.92
 
 Input files:
-Script: F:\Repos\MATSCRIPT\Examples\statistics\statistics.s; 7/12/2024 4:11:41 PM; 391 bytes
+Script: F:\Repos\MATSCRIPT\Examples\statistics\statistics.s; 7/13/2024 10:11:43 AM; 409 bytes
 Line 3: F:\...\Examples\statistics\input\random1.csv; 1/14/2024 4:58:54 PM; 1098 bytes
 Line 4: F:\...\Examples\statistics\input\random2.dat; 1/14/2024 4:58:54 PM; 1708 bytes
 
-STOP 7/12/2024 4:19:18 PM (Run time: 00:00:00)
+STOP 7/13/2024 10:14:15 AM (Run time: 00:00:00)

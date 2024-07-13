@@ -8,3 +8,4 @@ stats matrices=2
 stats matrices=2; Columns=1
 stats matrices=3
 stats matrices=1-3
+sad matrices=2,3

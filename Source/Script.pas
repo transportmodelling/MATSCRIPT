@@ -82,7 +82,7 @@ Type
   end;
 
   TInfoLogger = Class
-  strict private
+  strict protected
     Function FloatToStr(const Float: Float64): string;
   private
     Procedure Update(Row: Integer); virtual; abstract;

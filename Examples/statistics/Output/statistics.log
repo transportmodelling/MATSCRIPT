@@ -1,5 +1,5 @@
-START 7/20/2024 11:07:09 AM
-Executable: MATSCRIPT.exe; 7/20/2024 11:00:05 AM; 2268160 bytes
+START 7/21/2024 11:35:22 AM
+Executable: MATSCRIPT.exe; 7/21/2024 11:08:18 AM; 2268672 bytes
 Computer: PC04-SIG
 
 Matrices: 1
@@ -7,6 +7,9 @@ Rows: 1-10
 Columns: 1-10
 Minimum: 0.49 (row=8; column=10)
 Maximum: 97.61 (row=5; column=3)
+Cells < 0: 0
+Cells = 0: 0
+Cells > 0: 100
 Diagonal: 571.65
 Total: 5271.5
 
@@ -15,6 +18,9 @@ Rows: 1
 Columns: 1-10
 Minimum: 9.67 (row=1; column=7)
 Maximum: 75.7 (row=1; column=9)
+Cells < 0: 0
+Cells = 0: 0
+Cells > 0: 10
 Diagonal: 28.81
 Total: 430.22
 
@@ -23,6 +29,9 @@ Rows: 1-10
 Columns: 1-10
 Minimum: 0.44 (row=5; column=4)
 Maximum: 99.44 (row=7; column=1)
+Cells < 0: 0
+Cells = 0: 0
+Cells > 0: 100
 Diagonal: 504.58
 Total: 4846.9
 
@@ -31,6 +40,9 @@ Rows: 1-10
 Columns: 1
 Minimum: 18.25 (row=6; column=1)
 Maximum: 99.44 (row=7; column=1)
+Cells < 0: 0
+Cells = 0: 0
+Cells > 0: 10
 Diagonal: 20.21
 Total: 574.42
 
@@ -39,6 +51,9 @@ Rows: 1-10
 Columns: 1-10
 Minimum: 0.42 (row=5; column=9)
 Maximum: 99.39 (row=5; column=5)
+Cells < 0: 0
+Cells = 0: 0
+Cells > 0: 100
 Diagonal: 574.01
 Total: 5083.4
 
@@ -47,6 +62,9 @@ Rows: 1-10
 Columns: 1-10
 Minimum: 0.42 (row=5; column=9)
 Maximum: 99.44 (row=7; column=1)
+Cells < 0: 0
+Cells = 0: 0
+Cells > 0: 300
 Diagonal: 1650.2
 Total: 15202
 
@@ -58,4 +76,4 @@ Script: F:\Repos\MATSCRIPT\Examples\statistics\statistics.s; 7/13/2024 10:11:43 
 Line 3: F:\...\Examples\statistics\input\random1.csv; 1/14/2024 4:58:54 PM; 1098 bytes
 Line 4: F:\...\Examples\statistics\input\random2.dat; 1/14/2024 4:58:54 PM; 1708 bytes
 
-STOP 7/20/2024 11:07:09 AM (Run time: 00:00:00)
+STOP 7/21/2024 11:35:22 AM (Run time: 00:00:00)

@@ -92,7 +92,7 @@ Type
   TMatrixStatistics = Class(TInfoLogger)
   private
     Size: Integer;
-    MinRow,MinColumn,MaxRow,MaxColumn: Integer;
+    LessThanZero,EqualToZero,GreaterThanZero,MinRow,MinColumn,MaxRow,MaxColumn: Integer;
     Min,Max,Diagonal,Total: Float64;
     Matrices,Rows,Columns: TRanges;
     MatrixRows: array of TVirtualMatrixRow;
@@ -249,6 +249,7 @@ begin
   if Columns.Contains(Column+1) then
   for var MatrixRow := low(MatrixRows) to high(MatrixRows) do
   begin
+    // Update minimum and maximum value
     var Value := MatrixRows[MatrixRow].Values[Column];
     if Value < Min then
     begin
@@ -262,6 +263,11 @@ begin
       MaxRow := Row;
       MaxColumn := Column+1;
     end;
+    // Update cell counts
+    if Value < 0 then Inc(LessThanZero) else
+    if Value = 0 then Inc(EqualToZero) else
+    Inc(GreaterThanZero);
+    // Update (diagonal) total
     if Row = Column+1 then Diagonal := Diagonal + Value;
     Total := Total +Value;
   end;
@@ -277,6 +283,9 @@ begin
                                                           MinColumn.ToString + ')');
   LogFile.Log('Maximum: ' + FloatToStr(Max) + ' (row='+ MaxRow.ToString + '; column=' +
                                                           MaxColumn.ToString + ')');
+  LogFile.Log('Cells < 0: ' + LessThanZero.ToString);
+  LogFile.Log('Cells = 0: ' + EqualToZero.ToString);
+  LogFile.Log('Cells > 0: ' + GreaterThanZero.ToString);
   LogFile.Log('Diagonal: ' + FloatToStr(Diagonal));
   LogFile.Log('Total: ' + FloatToStr(Total));
 end;

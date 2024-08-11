@@ -1,5 +1,12 @@
 program MATSCRIPT;
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Author: Jaap Baak
+// https://github.com/transportmodelling/MATSCRIPT
+//
+////////////////////////////////////////////////////////////////////////////////
+
 {$APPTYPE CONSOLE}
 
 {$R *.res}
@@ -8,7 +15,13 @@ uses
   SysUtils,
   Math,
   Propset,
-  Script in 'Script.pas';
+  Script in 'Script.pas',
+  Script.Objct in 'Script.Objct.pas',
+  Script.Objct.Row in 'Script.Objct.Row.pas',
+  Script.Objct.Mtrx in 'Script.Objct.Mtrx.pas',
+  Script.Objct.Inp in 'Script.Objct.Inp.pas',
+  Script.Objct.Info in 'Script.Objct.Info.pas',
+  Script.Objct.Outp in 'Script.Objct.Outp.pas';
 
 begin
   if ParamCount > 0 then

@@ -1,137 +1,35 @@
 unit Script;
 
 ////////////////////////////////////////////////////////////////////////////////
+//
+// Author: Jaap Baak
+// https://github.com/transportmodelling/MATSCRIPT
+//
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
 interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, Classes, Math, Log, ArrayHlp, PropSet, Ranges, matio, matio.formats, matio.io;
+  SysUtils, Classes, Math, Log, Parse, ArrayHlp, PropSet, Ranges, matio, matio.formats, matio.io,
+  Script.Objct, Script.Objct.Row, Script.Objct.Mtrx, Script.Objct.Inp, Script.Objct.Outp, Script.Objct.Info;
 
 Type
-  TFileStatus = (fsUnused,fsIndexed,fsLabeled);
-
-  TMatrixIndexSelection = Class
-  private
-    Selection: TArray<Integer>;
-  end;
-
-  TMatrixLabelSelection = Class
-  private
-    Selection: TArray<String>;
-  end;
-
-  TInputMatrixFile = Class
-  private
-    Type
-      TSelection = record
-        case Status: TFileStatus of
-          fsIndexed: (Indices: TMatrixIndexSelection);
-          fsLabeled: (Labels: TMatrixLabelSelection);
-      end;
-    Var
-      Line: Integer;
-      FileProperties: TPropertySet;
-      Selection: TSelection;
-      Reader: TMatrixRowsReader;
-    Procedure OpenFile(Size: Integer);
-  public
-    Function Used: Boolean;
-    Destructor Destroy; override;
-  end;
-
-  TMatrixRow = Class(TVirtualMatrixRow)
-  public
-    Constructor Create(Size: Integer);
-  end;
-
-  TInputMatrixRow = Class(TMatrixRow)
-  private
-    MatrixFile: TInputMatrixFile;
-    MatrixIndex: Integer;
-  strict protected
-    Function GetValues(Column: Integer): Float64; override;
-  end;
-
-  TConstantMatrixRow = Class(TMatrixRow)
-  private
-    Value: Float64;
-  strict protected
-    Function GetValues(Column: Integer): Float64; override;
-  end;
-
-  TScaledMatrixRow = Class(TMatrixRow)
-  private
-    ScaleFactor: Float64;
-    Matrix: TVirtualMatrixRow;
-  strict protected
-    Function GetValues(Column: Integer): Float64; override;
-  end;
-
-  TMergedMatrixRow = Class(TMatrixRow)
-  private
-    Matrices: array of TVirtualMatrixRow;
-  strict protected
-    Function GetValues(Column: Integer): Float64; override;
-  end;
-
-  TDifferenceMatrixRow = Class(TMatrixRow)
-  private
-    Minuend,Subtrahend: TVirtualMatrixRow;
-  strict protected
-    Function GetValues(Column: Integer): Float64; override;
-  end;
-
-  TInfoLogger = Class
-  strict protected
-    Function FloatToStr(const Float: Float64): string;
-  private
-    Procedure Update(Row: Integer); virtual; abstract;
-    Procedure LogInfo; virtual; abstract;
-  end;
-
-  TMatrixStatistics = Class(TInfoLogger)
-  private
-    Size: Integer;
-    LessThanZero,EqualToZero,GreaterThanZero,MinRow,MinColumn,MaxRow,MaxColumn: Integer;
-    Min,Max,Diagonal,Total: Float64;
-    Matrices,Rows,Columns: TRanges;
-    MatrixRows: array of TVirtualMatrixRow;
-    Constructor Create;
-    Procedure Update(Row: Integer); override;
-    Procedure LogInfo; override;
-  end;
-
-  TSumOfAbsoluteDifferences = Class(TInfoLogger)
-  private
-    Size: Integer;
-    Matrices: TArray<Integer>;
-    SumOfAbsoluteDifferences: Float64;
-    MatrixRows: array[0..1] of TVirtualMatrixRow;
-    Procedure Update(Row: Integer); override;
-    Procedure LogInfo; override;
-  end;
-
-  TOutputMatrixFile = Class
-  private
-    Matrices: array of TVirtualMatrixRow;
-    Writer: TMatrixWriter;
-    Procedure Write;
-  public
-    Destructor Destroy; override;
-  end;
-
   TScriptInterpreter = Class
   private
     FileName: String;
-    LineCount,Size,MaxFileId,NFiles,MaxMatrixId,NMatrices: Integer;
+    Initialized: Boolean;
+    LineCount,MaxFileId,NFiles,MaxMatrixId,NMatrices: Integer;
     FileIndices: array {file id} of Integer;
     InputMatrixFiles: array {file index} of TInputMatrixFile;
     MatrixIndices: array {matrix id} of Integer;
-    Tags: array {matrix index} of String;
-    Matrices: array {matrix index} of TVirtualMatrixRow;
+    Matrices: array {matrix index} of TScriptMatrixRow;
     InfoLoggers: array {logger} of TInfoLogger;
+    StagedObjects: array {object} of TStagedObject;
     OutputMatrixFiles: array of TOutputMatrixFile;
-    Procedure RegisterMatrix(const MatrixId: Integer);
+    Procedure RegisterMatrix(const Id: Integer);
+    Function  GetMatrix(const Id: Integer): TScriptMatrixRow;
     Procedure CreateInputMatrix(const [ref] Arguments: TPropertySet; const FileIndex: Integer);
     Procedure InterpretInitCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretReadCommand(const [ref] Arguments: TPropertySet);
@@ -140,6 +38,7 @@ Type
     Procedure InterpretScaleCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretMergeCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretSubtractCommand(const [ref] Arguments: TPropertySet);
+    Procedure InterpretTransposeCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretStatisticsCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretSumOfAbsoluteDifferencesCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretWriteCommand(const [ref] Arguments: TPropertySet);
@@ -153,260 +52,61 @@ Type
 implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-Procedure TInputMatrixFile.OpenFile(Size: Integer);
+Procedure TScriptInterpreter.RegisterMatrix(const Id: Integer);
 begin
-  LogFile.InputFile('Line '+Line.ToString,FileProperties.ToPath(TMatrixFormat.FileProperty));
-  case Selection.Status of
-    fsIndexed: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Indices.Selection,Size);
-    fsLabeled: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Labels.Selection,Size);
-  end;
-end;
-
-Function TInputMatrixFile.Used: Boolean;
-begin
-  Result := (Selection.Status <> fsUnused);
-end;
-
-Destructor TInputMatrixFile.Destroy;
-begin
-  Reader.Free;
-  case Selection.Status of
-    fsIndexed: Selection.Indices.Free;
-    fsLabeled: Selection.Labels.Free;
-  end;
-  inherited Destroy;
-end;
-
-////////////////////////////////////////////////////////////////////////////////
-
-Constructor TMatrixRow.Create(Size: Integer);
-begin
-  inherited Create;
-  Init(Size);
-end;
-
-////////////////////////////////////////////////////////////////////////////////
-
-Function TInputMatrixRow.GetValues(Column: Integer): Float64;
-begin
-  Result := MatrixFile.Reader[MatrixIndex,Column];
-end;
-
-////////////////////////////////////////////////////////////////////////////////
-
-Function TConstantMatrixRow.GetValues(Column: Integer): Float64;
-begin
-  Result := Value;
-end;
-
-////////////////////////////////////////////////////////////////////////////////
-
-Function TScaledMatrixRow.GetValues(Column: Integer): Float64;
-begin
-  Result := ScaleFactor*Matrix.Values[Column];
-end;
-
-////////////////////////////////////////////////////////////////////////////////
-
-Function TMergedMatrixRow.GetValues(Column: Integer): Float64;
-begin
-  Result := 0.0;
-  for var Matrix := low(Matrices) to high(Matrices) do Result := Result + Matrices[Matrix].Values[Column];
-end;
-
-////////////////////////////////////////////////////////////////////////////////
-
-Function TDifferenceMatrixRow.GetValues(Column: Integer): Float64;
-begin
-  Result := Minuend[Column]-Subtrahend[Column];
-end;
-
-////////////////////////////////////////////////////////////////////////////////
-
-Function TInfoLogger.FloatToStr(const Float: Float64): string;
-begin
-  if Abs(Float) < 1 then Result := FormatFloat('0.#####',Float) else
-  if Abs(Float) < 10 then Result := FormatFloat('0.####',Float) else
-  if Abs(Float) < 100 then Result := FormatFloat('0.###',Float) else
-  if Abs(Float) < 1000 then Result := FormatFloat('0.##',Float) else
-  if Abs(Float) < 10000 then Result := FormatFloat('0.#',Float) else
-  Result := FormatFloat('0',Float);
-end;
-
-////////////////////////////////////////////////////////////////////////////////
-
-Constructor TMatrixStatistics.Create;
-begin
-  inherited Create;
-  Min := Infinity;
-  Max := NegInfinity;
-end;
-
-Procedure TMatrixStatistics.Update(Row: Integer);
-begin
-  if Rows.Contains(Row) then
-  for var Column := 0 to Size-1 do
-  if Columns.Contains(Column+1) then
-  for var MatrixRow := low(MatrixRows) to high(MatrixRows) do
-  begin
-    // Update minimum and maximum value
-    var Value := MatrixRows[MatrixRow].Values[Column];
-    if Value < Min then
-    begin
-      Min := Value;
-      MinRow := Row;
-      MinColumn := Column+1;
-    end;
-    if Value > Max then
-    begin
-      Max := Value;
-      MaxRow := Row;
-      MaxColumn := Column+1;
-    end;
-    // Update cell counts
-    if Value < 0 then Inc(LessThanZero) else
-    if Value = 0 then Inc(EqualToZero) else
-    Inc(GreaterThanZero);
-    // Update (diagonal) total
-    if Row = Column+1 then Diagonal := Diagonal + Value;
-    Total := Total +Value;
-  end;
-end;
-
-Procedure TMatrixStatistics.LogInfo;
-begin
-  LogFile.Log;
-  LogFile.Log('Matrices: ' + Matrices.AsString);
-  LogFile.Log('Rows: ' + Rows.AsString);
-  LogFile.Log('Columns: ' + Columns.AsString);
-  LogFile.Log('Minimum: ' + FloatToStr(Min) + ' (row='+ MinRow.ToString + '; column=' +
-                                                          MinColumn.ToString + ')');
-  LogFile.Log('Maximum: ' + FloatToStr(Max) + ' (row='+ MaxRow.ToString + '; column=' +
-                                                          MaxColumn.ToString + ')');
-  LogFile.Log('Cells < 0: ' + LessThanZero.ToString);
-  LogFile.Log('Cells = 0: ' + EqualToZero.ToString);
-  LogFile.Log('Cells > 0: ' + GreaterThanZero.ToString);
-  LogFile.Log('Diagonal: ' + FloatToStr(Diagonal));
-  LogFile.Log('Total: ' + FloatToStr(Total));
-end;
-
-////////////////////////////////////////////////////////////////////////////////
-
-Procedure TSumOfAbsoluteDifferences.Update(Row: Integer);
-begin
-  for var Column := 0 to Size-1 do
-  SumOfAbsoluteDifferences := SumOfAbsoluteDifferences +
-    Abs(MatrixRows[0].Values[Column]-MatrixRows[1].Values[Column]);
-end;
-
-Procedure TSumOfAbsoluteDifferences.LogInfo;
-begin
-  LogFile.Log;
-  LogFile.Log('Matrices: ' + Matrices[0].ToString+','+Matrices[1].ToString);
-  LogFile.Log('Sum of absolute differences: ' + FloatToStr(SumOfAbsoluteDifferences));
-end;
-
-////////////////////////////////////////////////////////////////////////////////
-
-Procedure TOutputMatrixFile.Write;
-begin
-  Writer.Write(Matrices);
-end;
-
-Destructor TOutputMatrixFile.Destroy;
-begin
-  Writer.Free;
-  inherited Destroy;
-end;
-
-////////////////////////////////////////////////////////////////////////////////
-
-Procedure TScriptInterpreter.RegisterMatrix(const MatrixId: Integer);
-begin
-  if MatrixId > 0 then
+  if Id > 0 then
   begin
     // Allocate matrix indices
-    if MaxMatrixId < MatrixId then
+    if MaxMatrixId < Id then
     begin
-      SetLength(MatrixIndices,MatrixId);
-      for var Id := MaxMatrixId to MatrixId-1 do MatrixIndices[Id] := -1;
-      MaxMatrixId := MatrixId;
+      SetLength(MatrixIndices,Id);
+      for var MatrixId := MaxMatrixId to Id-1 do MatrixIndices[MatrixId] := -1;
+      MaxMatrixId := Id;
     end;
     // Create matrix
-    if MatrixIndices[MatrixId-1] < 0 then
+    if MatrixIndices[Id-1] < 0 then
     begin
-      MatrixIndices[MatrixId-1] := NMatrices;
+      MatrixIndices[Id-1] := NMatrices;
       Inc(NMatrices);
     end else
-      raise Exception.Create('Matrix Id ' + MatrixId.ToString + ' already used');
+      raise Exception.Create('Matrix Id ' + Id.ToString + ' already used');
   end else
-    raise Exception.Create('Invalid matrix id' + MatrixId.ToString);
+    raise Exception.Create('Invalid matrix id ' + Id.ToString);
+end;
+
+Function TScriptInterpreter.GetMatrix(const Id: Integer): TScriptMatrixRow;
+begin
+  if (Id > 0) and (Id <= Length(MatrixIndices)) then
+  begin
+    var Index := MatrixIndices[Id-1];
+    if Index >= 0 then
+      Result := Matrices[Index]
+    else
+      raise Exception.Create('Invalid matrix id ' + Id.ToString);
+  end else
+    raise Exception.Create('Invalid matrix id ' + Id.ToString);
 end;
 
 Procedure TScriptInterpreter.CreateInputMatrix(const [ref] Arguments: TPropertySet; const FileIndex: Integer);
-Var
-  Tag: String;
 begin
-  // Get reference type
-  var Indexed := Arguments.Contains('index');
-  var Labeled := Arguments.Contains('label');
-  if (not Indexed) and (not Labeled) then raise Exception.Create('Missing matrix reference');
-  if Indexed and Labeled then raise Exception.Create('Ambiguous matrix reference');
-  // Update file status
-  case InputMatrixFiles[FileIndex].Selection.Status of
-    fsUnused:
-      begin
-        if Indexed and (not Labeled) then
-        begin
-          // Create index selection
-          InputMatrixFiles[FileIndex].Selection.Status := fsIndexed;
-          InputMatrixFiles[FileIndex].Selection.Indices := TMatrixIndexSelection.Create;
-        end else
-        if (not Indexed) and Labeled then
-        begin
-          // Create label selection
-          InputMatrixFiles[FileIndex].Selection.Status := fsLabeled;
-          InputMatrixFiles[FileIndex].Selection.Labels := TMatrixLabelSelection.Create;
-        end;
-      end;
-    fsIndexed:
-        if Labeled then raise Exception.Create('Matrix index expected');
-    fsLabeled:
-        if Indexed then raise Exception.Create('Matrix label expected');
-  end;
   // Create matrix
-  var Matrix := TInputMatrixRow.Create(Size);
-  Matrix.MatrixFile := InputMatrixFiles[FileIndex];
-  if not Arguments.ContainsValue('tag',Tag) then
-  if not Arguments.ContainsValue('label',Tag) then
-  Tag := Arguments['id'];
-  // Update selection
-  case InputMatrixFiles[FileIndex].Selection.Status of
-    fsIndexed:
-      begin
-        var Indx := Arguments.ToInt('index')-1;
-        Matrix.MatrixIndex := InputMatrixFiles[FileIndex].Selection.Indices.Selection.Length;
-        InputMatrixFiles[FileIndex].Selection.Indices.Selection.Append([Indx]);
-      end;
-    fsLabeled:
-      begin
-        var Lbl := Arguments['label'];
-        Matrix.MatrixIndex := InputMatrixFiles[FileIndex].Selection.Labels.Selection.Length;
-        InputMatrixFiles[FileIndex].Selection.Labels.Selection.Append([Lbl]);
-      end;
-  end;
-  Tags := Tags + [Tag];
+  var Matrix := InputMatrixFiles[FileIndex].CreateMatrix(Arguments);
   Matrices := Matrices + [Matrix];
 end;
 
 Procedure TScriptInterpreter.InterpretInitCommand(const [ref] Arguments: TPropertySet);
 begin
-  Size := Arguments.ToInt('size');
-  if Arguments.Contains('log') then
-    LogFile := TLogFile.Create(Arguments.ToPath('log'),true)
-  else
-    LogFile := TLogFile.Create;
-  LogFile.InputFile('Script',FileName);
+  Initialized := true;
+  TScriptObject.Size := Arguments.ToInt('size');
+  if TScriptObject.Size > 0 then
+  begin
+    if Arguments.Contains('log') then
+      LogFile := TLogFile.Create(Arguments.ToPath('log'),true)
+    else
+      LogFile := TLogFile.Create;
+    LogFile.InputFile('Script',FileName);
+  end else
+    raise Exception.Create('Invalid Size-value');
 end;
 
 Procedure TScriptInterpreter.InterpretReadCommand(const [ref] Arguments: TPropertySet);
@@ -414,10 +114,7 @@ begin
   // Set file properties
   var FileId := Arguments.ToInt('id',0);
   SetLength(InputMatrixFiles,NFiles+1);
-  InputMatrixFiles[NFiles] := TInputMatrixFile.Create;
-  InputMatrixFiles[NFiles].Line := LineCount;
-  InputMatrixFiles[NFiles].Selection.Status := fsUnused;
-  InputMatrixFiles[NFiles].FileProperties := Arguments;
+  InputMatrixFiles[NFiles] := TInputMatrixFile.Create(LineCount,Arguments);
   // Set file index
   if FileId > 0 then
   begin
@@ -455,8 +152,8 @@ begin
     var FileIndex := FileIndices[FileId-1];
     if FileIndex >= 0 then
     begin
-      var MatrixId := Arguments.ToInt('id');
-      RegisterMatrix(MatrixId);
+      var Id := Arguments.ToInt('id');
+      RegisterMatrix(Id);
       CreateInputMatrix(Arguments,FileIndex);
     end else
       raise Exception.Create('Invalid file id');
@@ -467,71 +164,48 @@ end;
 Procedure TScriptInterpreter.InterpretConstCommand(const [ref] Arguments: TPropertySet);
 begin
   // Register matrix
-  var MatrixId := Arguments.ToInt('id');
-  RegisterMatrix(MatrixId);
+  var Id := Arguments.ToInt('id');
+  RegisterMatrix(Id);
   // Create matrix
-  var Matrix := TConstantMatrixRow.Create(Size);
-  Matrix.Value := Arguments.ToFloat('value');
-  Tags := Tags + [Arguments.ToStr('tag',MatrixId.ToString)];
+  var Value := Arguments.ToFloat('value');
+  var Matrix := TConstantMatrixRow.Create(Id,Value);
   Matrices := Matrices + [Matrix];
 end;
 
 Procedure TScriptInterpreter.InterpretScaleCommand(const [ref] Arguments: TPropertySet);
 begin
   // Register matrix
-  var MatrixId := Arguments.ToInt('id');
-  RegisterMatrix(MatrixId);
+  var Id := Arguments.ToInt('id');
+  RegisterMatrix(Id);
   // Create matrix
-  MatrixId := Arguments.ToInt('matrix');
-  if (MatrixId > 0) and (MatrixId < Length(MatrixIndices)) then
-  begin
-    var MatrixIndex := MatrixIndices[MatrixId-1];
-    if MatrixIndex >= 0 then
-    begin
-      var ScaledMatrix := TScaledMatrixRow.Create(Size);
-      ScaledMatrix.ScaleFactor := Arguments.ToFloat('factor');
-      ScaledMatrix.Matrix := Matrices[MatrixIndex];
-      Tags := Tags + [Arguments.ToStr('tag',MatrixId.ToString)];
-      Matrices := Matrices + [ScaledMatrix];
-    end else
-      raise Exception.Create('Invalid matrix id' + MatrixId.ToString);
-  end else
-    raise Exception.Create('Invalid matrix id' + MatrixId.ToString);
+  var Matrix := GetMatrix(Arguments.ToInt('matrix'));
+  var ScaleFactor := Arguments.ToFloat('factor');
+  var ScaledMatrix := TScaledMatrixRow.Create(Id,ScaleFactor,Matrix);
+  Matrices := Matrices + [ScaledMatrix];
 end;
 
 Procedure TScriptInterpreter.InterpretMergeCommand(const [ref] Arguments: TPropertySet);
+Var
+  MergeMatrices: array of TScriptMatrixRow;
 begin
   // Register matrix
-  var MatrixId := Arguments.ToInt('id');
-  RegisterMatrix(MatrixId);
-  // Create matrix
-  var MatrixIds := TRanges.Create(Arguments['matrices']).Values;
-  var MergedMatrix := TMergedMatrixRow.Create(Size);
-  for var Matrix := low(MatrixIds) to high(MatrixIds) do
-  if (MatrixIds[Matrix] > 0) and (MatrixIds[Matrix] < Length(MatrixIndices)) then
-  begin
-    var MatrixIndex := MatrixIndices[MatrixIds[Matrix]-1];
-    if MatrixIndex >= 0 then
-      MergedMatrix.Matrices := MergedMatrix.Matrices + [Matrices[MatrixIndex]]
-    else
-      begin
-        MergedMatrix.Free;
-        raise Exception.Create('Invalid matrix id' + MatrixIds[Matrix].ToString);
-      end;
-  end else
-  begin
-    MergedMatrix.Free;
-    raise Exception.Create('Invalid matrix id' + MatrixIds[Matrix].ToString);
-  end;
-  Tags := Tags + [Arguments.ToStr('tag',MatrixId.ToString)];
+  var Id := Arguments.ToInt('id');
+  RegisterMatrix(Id);
+  // Set matrix selection
+  var Ids := TRanges.Create(Arguments['matrices']).Values;
+  SetLength(MergeMatrices,Ids.Length);
+  for var Matrix := low(Ids) to high(Ids) do MergeMatrices[Matrix] := GetMatrix(Ids[Matrix]);
+  // Create merged matrix
+  var MergedMatrix := TMergedMatrixRow.Create(Id,MergeMatrices);
   Matrices := Matrices + [MergedMatrix];
 end;
 
 Procedure TScriptInterpreter.InterpretSubtractCommand(const [ref] Arguments: TPropertySet);
 begin
+  {
   // Register matrix
-  var MatrixId := Arguments.ToInt('id');
-  RegisterMatrix(MatrixId);
+  var Id := Arguments.ToInt('id');
+  RegisterMatrix(Id);
   // Create matrix
   var Minuend := Arguments.ToInt('minuend');
   if (Minuend > 0) and (Minuend < Length(MatrixIndices)) then
@@ -544,166 +218,172 @@ begin
       var DifferenceMatrix := TDifferenceMatrixRow.Create(Size);
       DifferenceMatrix.Minuend := Matrices[MinuendIndex];
       DifferenceMatrix.Subtrahend := Matrices[SubtrahendIndex];
-      Tags := Tags + [Arguments.ToStr('tag',MatrixId.ToString)];
+      Tags := Tags + [Arguments.ToStr('tag',Id.ToString)];
       Matrices := Matrices + [DifferenceMatrix];
     end else
       raise Exception.Create('Invalid subtrahend matrix id');
   end else
     raise Exception.Create('Invalid minuend matrix id');
+  }
+end;
+
+Procedure TScriptInterpreter.InterpretTransposeCommand(const [ref] Arguments: TPropertySet);
+begin
+  // Register matrix
+  var Id := Arguments.ToInt('id');
+  RegisterMatrix(Id);
+  // Create transposed matrix
+  var MatrixId := Arguments.ToInt('matrix');
+  var Matrix := GetMatrix(MatrixId);
+  var TransposedMatrix := TTransposedMatrixRow.Create(MatrixId,Matrix);
+  TransposedMatrix.Tag := Arguments['tag'];
+  Matrices := Matrices + [TransposedMatrix];
 end;
 
 Procedure TScriptInterpreter.InterpretStatisticsCommand(const [ref] Arguments: TPropertySet);
 Var
-  RowSelection,ColumnSelection: String;
+  StatisticsMatrices: array of TScriptMatrixRow;
+  Rows,Columns: TRanges;
+  Selection: String;
 begin
-  var Statistics := TMatrixStatistics.Create;
-  Statistics.Size := Size;
-  Statistics.Matrices := TRanges.Create(Arguments['matrices']);
+  // Set Rows selection
+  if Arguments.Contains('rows',Selection) then
+    Rows := TRanges.Create(Selection)
+  else
+    Rows := TRanges.Create([TRange.Create(1,TScriptObject.Size)]);
+  // Set Columns selection
+  if Arguments.Contains('columns',Selection) then
+    Columns := TRanges.Create(Selection)
+  else
+    Columns := TRanges.Create([TRange.Create(1,TScriptObject.Size)]);
   // Set matrix selection
-  var MatrixIds := Statistics.Matrices.Values;
-  for var Matrix := low(MatrixIds) to high(MatrixIds) do
-  if (MatrixIds[Matrix] > 0) and (MatrixIds[Matrix] <= Length(MatrixIndices)) then
-  begin
-    var MatrixIndex := MatrixIndices[MatrixIds[Matrix]-1];
-    if MatrixIndex >= 0 then
-      Statistics.MatrixRows := Statistics.MatrixRows + [Matrices[MatrixIndex]]
-    else
-      begin
-        Statistics.Free;
-        raise Exception.Create('Invalid matrix id' + MatrixIds[Matrix].ToString);
-      end;
-  end else
-  begin
-    Statistics.Free;
-    raise Exception.Create('Invalid matrix id' + MatrixIds[Matrix].ToString);
-  end;
-  // Set selected rows
-  if Arguments.Contains('rows',RowSelection) then
-    Statistics.Rows := TRanges.Create(RowSelection)
-  else
-    Statistics.Rows := TRanges.Create([TRange.Create(1,Size)]);
-  // Set selected columns
-  if Arguments.Contains('columns',ColumnSelection) then
-    Statistics.Columns := TRanges.Create(ColumnSelection)
-  else
-    Statistics.Columns := TRanges.Create([TRange.Create(1,Size)]);
+  var Ids := TRanges.Create(Arguments['matrices']).Values;
+  SetLength(StatisticsMatrices,Ids.Length);
+  for var Matrix := low(Ids) to high(Ids) do StatisticsMatrices[Matrix] := GetMatrix(Ids[Matrix]);
+  // Create info object
+  var Statistics := TMatrixStatistics.Create(Rows,Columns,StatisticsMatrices);
   InfoLoggers := InfoLoggers + [Statistics];
 end;
 
 Procedure TScriptInterpreter.InterpretSumOfAbsoluteDifferencesCommand(const [ref] Arguments: TPropertySet);
+Var
+  Id0,Id1: Integer;
+  Rows,Columns: TRanges;
+  Selection: String;
 begin
-  var SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create;
-  SumOfAbsoluteDifferences.Size := Size;
-  SumOfAbsoluteDifferences.Matrices := TRanges.Create(Arguments['matrices']).Values;
-  if Length(SumOfAbsoluteDifferences.Matrices) = 2 then
-  begin
-    for var Matrix := 0 to 1 do
-    begin
-      var MatrixIndex := MatrixIndices[SumOfAbsoluteDifferences.Matrices[Matrix]-1];
-      if MatrixIndex >= 0 then
-        SumOfAbsoluteDifferences.MatrixRows[Matrix] := Matrices[MatrixIndex]
-      else
-        begin
-          SumOfAbsoluteDifferences.Free;
-          raise Exception.Create('Invalid matrix id' + Matrices[Matrix].ToString);
-        end;
-    end;
-    InfoLoggers := InfoLoggers + [SumOfAbsoluteDifferences];
-  end else
-  begin
-    SumOfAbsoluteDifferences.Free;
-    raise Exception.Create('Invalid number of matrices');
-  end;
+  Arguments.Parse('matrices').AssignToVar([Id0,Id1]);
+  // Set Rows selection
+  if Arguments.Contains('rows',Selection) then
+    Rows := TRanges.Create(Selection)
+  else
+    Rows := TRanges.Create([TRange.Create(1,TScriptObject.Size)]);
+  // Set Columns selection
+  if Arguments.Contains('columns',Selection) then
+    Columns := TRanges.Create(Selection)
+  else
+    Columns := TRanges.Create([TRange.Create(1,TScriptObject.Size)]);
+  // Set matrix selection
+  var Matrix0 := GetMatrix(Id0);
+  var Matrix1 := GetMatrix(Id1);
+  // Create info object
+  var SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,Matrix0,Matrix1);
+  InfoLoggers := InfoLoggers + [SumOfAbsoluteDifferences];
 end;
 
 Procedure TScriptInterpreter.InterpretWriteCommand(const [ref] Arguments: TPropertySet);
 Var
-  MatrixTags: array of String;
+  OutputMatrices: array of TScriptMatrixRow;
 begin
-  var FileLabel := Arguments.ToStr('label','');
-  var FileMatrices := TRanges.Create(Arguments['matrices']).Values;
-  if FileMatrices.Length > 0 then
+  // Get Output matrices
+  var Ids := TRanges.Create(Arguments['matrices']).Values;
+  SetLength(OutputMatrices,Ids.Length);
+  for var Matrix := low(Ids) to high(Ids) do
   begin
-    var OutputMatrixFile := TOutputMatrixFile.Create;
-    SetLength(MatrixTags,FileMatrices.Length);
-    SetLength(OutputMatrixFile.Matrices,FileMatrices.Length);
-    for var Matrix := 0 to FileMatrices.Length-1 do
-    if (FileMatrices[Matrix] > 0) and (FileMatrices[Matrix] <= Length(MatrixIndices)) then
+    OutputMatrices[Matrix] := GetMatrix(Ids[Matrix]);
+    if OutputMatrices[Matrix].Transposed then
     begin
-      var MatrixIndex := MatrixIndices[FileMatrices[Matrix]-1];
-      if MatrixIndex >= 0 then
-      begin
-        MatrixTags[Matrix] := Tags[MatrixIndex];
-        OutputMatrixFile.Matrices[Matrix] := Matrices[MatrixIndex];
-      end else
-      begin
-        OutputMatrixFile.Free;
-        raise Exception.Create('Unknown matrix ' + FileMatrices[Matrix].ToString);
-      end;
-    end else
-    begin
-      OutputMatrixFile.Free;
-      raise Exception.Create('Unknown matrix ' + FileMatrices[Matrix].ToString);
+      // Store transposed matrix in memomory and create reader.
+      // The memory matrix reader gets the same Id, but it is not registered.
+      var MemMatrix := TMemMatrix.Create([OutputMatrices[Matrix]]);
+      var MemMatrixReader := TMemMatrixReader.Create(OutputMatrices[Matrix].Id,MemMatrix);
+      MemMatrixReader.Tag := OutputMatrices[Matrix].Tag;
+      StagedObjects := StagedObjects + [MemMatrix];
+      Matrices := Matrices + [MemMatrixReader];
+      OutputMatrices[Matrix] := MemMatrixReader;
+      Inc(NMatrices);
     end;
-    OutputMatrixFile.Writer := MatrixFormats.CreateWriter(Arguments,FileLabel,MatrixTags,Size);
-    OutputMatrixFiles := OutputMatrixFiles + [OutputMatrixFile];
-    LogFile.OutputFile('Line: '+LineCount.ToString,Arguments.ToPath(TMatrixFormat.FileProperty));
   end;
+  // Create output file
+  var FileLabel := '';
+  var OutputMatrixFile := TOutputMatrixFile.Create(Arguments,FileLabel,OutputMatrices);
+  OutputMatrixFiles := OutputMatrixFiles + [OutputMatrixFile];
+  LogFile.OutputFile('Line: '+LineCount.ToString,Arguments.ToPath(TMatrixFormat.FileProperty));
 end;
 
 Function TScriptInterpreter.InterpretLine(const Command,Arguments: String): Boolean;
 begin
   if SameText(Command,'init') then
-  begin
-    Result := true;
-    InterpretInitCommand(Arguments);
-  end else
-  if SameText(Command,'read') then
-  begin
-    Result := true;
-    InterpretReadCommand(Arguments);
-  end else
-  if SameText(Command,'matrix') then
-  begin
-    Result := true;
-    InterpretMatrixCommand(Arguments);
-  end else
-  if SameText(Command,'const') then
-  begin
-    Result := true;
-    InterpretConstCommand(Arguments);
-  end else
-  if SameText(Command,'scale') then
-  begin
-    Result := true;
-    InterpretScaleCommand(Arguments);
-  end else
-  if SameText(Command,'merge') then
-  begin
-    Result := true;
-    InterpretMergeCommand(Arguments);
-  end else
-  if SameText(Command,'subtract') then
-  begin
-    Result := true;
-    InterpretSubtractCommand(Arguments);
-  end else
-  if SameText(Command,'sad') then
-  begin
-    Result := true;
-    InterpretSumOfAbsoluteDifferencesCommand(Arguments);
-  end else
-  if SameText(Command,'stats') then
-  begin
-    Result := true;
-    InterpretStatisticsCommand(Arguments);
-  end else
-  if SameText(Command,'write') then
-  begin
-    Result := true;
-    InterpretWriteCommand(Arguments);
-  end else
-    Result := false;
+    if not Initialized then
+    begin
+      Result := true;
+      InterpretInitCommand(Arguments);
+    end else
+      raise Exception.Create('Already initialized')
+  else
+    if Initialized then
+      if SameText(Command,'read') then
+      begin
+        Result := true;
+        InterpretReadCommand(Arguments);
+      end else
+      if SameText(Command,'matrix') then
+      begin
+        Result := true;
+        InterpretMatrixCommand(Arguments);
+      end else
+      if SameText(Command,'const') then
+      begin
+        Result := true;
+        InterpretConstCommand(Arguments);
+      end else
+      if SameText(Command,'scale') then
+      begin
+        Result := true;
+        InterpretScaleCommand(Arguments);
+      end else
+      if SameText(Command,'merge') then
+      begin
+        Result := true;
+        InterpretMergeCommand(Arguments);
+      end else
+      if SameText(Command,'subtract') then
+      begin
+        Result := true;
+        InterpretSubtractCommand(Arguments);
+      end else
+      if SameText(Command,'transpose') then
+      begin
+        Result := true;
+        InterpretTransposeCommand(Arguments);
+      end else
+      if SameText(Command,'sad') then
+      begin
+        Result := true;
+        InterpretSumOfAbsoluteDifferencesCommand(Arguments);
+      end else
+      if SameText(Command,'stats') then
+      begin
+        Result := true;
+        InterpretStatisticsCommand(Arguments);
+      end else
+      if SameText(Command,'write') then
+      begin
+        Result := true;
+        InterpretWriteCommand(Arguments);
+      end else
+        Result := false
+    else
+      raise Exception.Create('Initialization required');
 end;
 
 Procedure TScriptInterpreter.InterpretLines;
@@ -737,20 +417,59 @@ begin
   try
     FileName := ScriptFileName;
     InterpretLines;
-    for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
-    if InputMatrixFiles[MatrixFl].Used then InputMatrixFiles[MatrixFl].OpenFile(Size);
-    for var Row := 0 to Size-1 do
+    for var Stage := 0 to TScriptObject.MaxStage do
     begin
+      // Activate staged objects.
+      // This will activate required input files for this stage.
+      for var StagedObject := low(StagedObjects) to high(StagedObjects) do
+      if StagedObjects[StagedObject].Stage = Stage then
+      StagedObjects[StagedObject].Active[Stage] := true;
+      for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
+      if OutputMatrixFiles[MatrixFl].Stage = Stage then OutputMatrixFiles[MatrixFl].Active[Stage] := true;
+      // Open input files
       for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
-      if InputMatrixFiles[MatrixFl].Used then InputMatrixFiles[MatrixFl].Reader.Read;
-      for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do InfoLoggers[InfoLogger].Update(Row+1);
-      for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do OutputMatrixFiles[MatrixFl].Write;
+      if InputMatrixFiles[MatrixFl].Active[Stage] then InputMatrixFiles[MatrixFl].OpenFile;
+      // Update Tags
+      for var Matrix := low(Matrices) to high(Matrices) do Matrices[Matrix].UpdateTag;
+      // Open output files for this stage.
+      for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
+      if OutputMatrixFiles[MatrixFl].Active[Stage] then OutputMatrixFiles[MatrixFl].OpenFile;
+      // Iterate rows
+      for var Row := 0 to TScriptObject.Size-1 do
+      begin
+        // Read input matrices
+        for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
+        if InputMatrixFiles[MatrixFl].Active[Stage] then InputMatrixFiles[MatrixFl].Read;
+        // Set matrix rows
+        for var Matrix := low(Matrices) to high(Matrices) do Matrices[Matrix].Row := Row;
+        // Update info loggers
+        for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do
+        if InfoLoggers[InfoLogger].Active[Stage] then
+        InfoLoggers[InfoLogger].Update(Row+1);
+        // Update (other) staged objects
+        for var StagedObject := low(StagedObjects) to high(StagedObjects) do
+        if StagedObjects[StagedObject].Active[Stage] then
+        StagedObjects[StagedObject].Update(Row+1);
+        // Write output files
+        for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
+        if OutputMatrixFiles[MatrixFl].Stage = Stage then
+        OutputMatrixFiles[MatrixFl].Write;
+      end;
+      // Close input files
+      for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
+      if InputMatrixFiles[MatrixFl].Active[Stage] then InputMatrixFiles[MatrixFl].CloseFile;
+      // Close output files
+      for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
+      if OutputMatrixFiles[MatrixFl].Active[Stage] then OutputMatrixFiles[MatrixFl].CloseFile;
     end;
+    // Log info
     for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do InfoLoggers[InfoLogger].LogInfo;
   finally
+    // Destroy objects
     for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do InputMatrixFiles[MatrixFl].Free;
     for var Matrix := low(Matrices) to high(Matrices) do Matrices[Matrix].Free;
     for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do InfoLoggers[InfoLogger].Free;
+    for var StagedObject := low(StagedObjects) to high(StagedObjects) do StagedObjects[StagedObject].Free;
     for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do OutputMatrixFiles[MatrixFl].Free;
     LogFile.Free;
   end;

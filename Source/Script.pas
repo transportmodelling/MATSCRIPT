@@ -192,12 +192,43 @@ begin
   var Id := Arguments.ToInt('id');
   RegisterMatrix(Id);
   // Set matrix selection
+  var NSymmetricMatrices := 0;
+  var NTransposedMatrices := 0;
   var Ids := TRanges.Create(Arguments['matrices']).Values;
-  SetLength(MergeMatrices,Ids.Length);
-  for var Matrix := low(Ids) to high(Ids) do MergeMatrices[Matrix] := GetMatrix(Ids[Matrix]);
+  var NMatrices := Ids.Length;
+  SetLength(MergeMatrices,NMatrices);
+  for var Matrix := low(Ids) to high(Ids) do
+  begin
+    MergeMatrices[Matrix] := GetMatrix(Ids[Matrix]);
+    if MergeMatrices[Matrix].Symmetric then Inc(NSymmetricMatrices);
+    if MergeMatrices[Matrix].Transposed then Inc(NTransposedMatrices);
+  end;
   // Create merged matrix
-  var MergedMatrix := TMergedMatrixRow.Create(Id,MergeMatrices);
-  Matrices := Matrices + [MergedMatrix];
+  if NMatrices = NSymmetricMatrices then
+  begin
+    var MergedMatrix := TMergedMatrixRow.Create(Id,true,false,MergeMatrices);
+    MergedMatrix.Tag := Arguments['tag'];
+    Matrices := Matrices + [MergedMatrix];
+  end else
+  if NTransposedMatrices = 0 then
+  begin
+    var MergedMatrix := TMergedMatrixRow.Create(Id,false,false,MergeMatrices);
+    MergedMatrix.Tag := Arguments['tag'];
+    Matrices := Matrices + [MergedMatrix];
+  end else
+  if NMatrices = NSymmetricMatrices + NTransposedMatrices then
+  begin
+    var MergedMatrix := TMergedMatrixRow.Create(Id,false,true,MergeMatrices);
+    MergedMatrix.Tag := Arguments['tag'];
+    Matrices := Matrices + [MergedMatrix];
+  end else
+  begin
+    var MemMatrix := TMemMatrix.Create(MergeMatrices);
+    var MemMatrixReader := TMemMatrixReader.Create(Id,MemMatrix);
+    MemMatrixReader.Tag := Arguments['tag'];
+    StagedObjects := StagedObjects + [MemMatrix];
+    Matrices := Matrices + [MemMatrixReader];
+  end;
 end;
 
 Procedure TScriptInterpreter.InterpretSubtractCommand(const [ref] Arguments: TPropertySet);

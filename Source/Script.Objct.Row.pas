@@ -20,8 +20,8 @@ Type
   private
     FTag: String;
     FTransposed,FSymmetric: Boolean;
-    FDelegate: TDelegateMatrixRow;
-    FId,FRow,FNTransposedDependencies,FNSymmetricDependencies: Integer;
+    FDelegate: TDelegatedMatrixRow;
+    FId,FRow: Integer;
   public
     Constructor Create(const Id: Integer);
     Procedure UpdateTag; virtual;
@@ -33,9 +33,7 @@ Type
     Property Row: Integer read FRow write FRow;
     Property Transposed: Boolean read FTransposed;
     Property Symmetric: Boolean read FSymmetric;
-    Property Delegate: TDelegateMatrixRow read FDelegate;
-    Property NTransposedDependencies: Integer read FNTransposedDependencies;
-    Property NSymmetricDependencies: Integer read FNSymmetricDependencies;
+    Property Delegate: TDelegatedMatrixRow read FDelegate;
   end;
 
   TConstantMatrixRow = Class(TScriptMatrixRow)
@@ -58,31 +56,24 @@ Type
     Function GetValues(const Column: Integer): Float64; override; final;
   end;
 
-  TMatrixRowsManipulation = Class(TScriptMatrixRow)
-  strict protected
-    Procedure Initialize;
-    Function Dependencies(Dependency: Integer): TScriptObject; override; final;
-    Function RowDependencies(Dependency: Integer): TScriptMatrixRow; virtual; abstract;
-  end;
-
-  TScaledMatrixRow = Class(TMatrixRowsManipulation)
+  TScaledMatrixRow = Class(TScriptMatrixRow)
   private
     Factor: Float64;
     Row: TScriptMatrixRow;
   strict protected
-    Function RowDependencies(Dependency: Integer): TScriptMatrixRow; override; final;
+    Function Dependencies(Dependency: Integer): TScriptObject; override;
   public
     Constructor Create(Id: Integer; ScaleFactor: Float64; MatrixRow: TScriptMatrixRow);
     Function GetValues(const Column: Integer): Float64; override; final;
   end;
 
-  TMergedMatrixRow = Class(TMatrixRowsManipulation)
+  TMergedMatrixRow = Class(TScriptMatrixRow)
   private
     Rows: TArray<TScriptMatrixRow>;
   strict protected
-    Function RowDependencies(Dependency: Integer): TScriptMatrixRow; override; final;
+    Function Dependencies(Dependency: Integer): TScriptObject; override;
   public
-    Constructor Create(Id: Integer; const MatrixRows: array of TScriptMatrixRow);
+    Constructor Create(Id: Integer; Symmetric,Transposed: Boolean; const MatrixRows: array of TScriptMatrixRow);
     Function GetValues(const Column: Integer): Float64; override; final;
   end;
 
@@ -94,7 +85,7 @@ Constructor TScriptMatrixRow.Create(const Id: Integer);
 begin
   inherited Create;
   FId := Id;
-  FDelegate := TDelegateMatrixRow.Create(Size,
+  FDelegate := TDelegatedMatrixRow.Create(Size,
                 Function(Column: Integer): Float64
                 begin
                   Result := GetValues(Column);
@@ -132,13 +123,8 @@ begin
   inherited Create(Id);
   FNDependencies := 1;
   Row := MatrixRow;
+  if Row.FSymmetric then FSymmetric := true else FTransposed := not Row.FTransposed;
   SetStage;
-  if Row.FSymmetric then
-  begin
-    FSymmetric := true;
-    FNSymmetricDependencies := 1;
-  end else
-  if Row.FTransposed then FNTransposedDependencies := 1 else FTransposed := true;
 end;
 
 Function TTransposedMatrixRow.Dependencies(Dependency: Integer): TScriptObject;
@@ -153,41 +139,16 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Function TMatrixRowsManipulation.Dependencies(Dependency: Integer): TScriptObject;
-begin
-  Result := RowDependencies(Dependency);
-end;
-
-Procedure TMatrixRowsManipulation.Initialize;
-begin
-  SetStage;
-  // Count transposed and symmetrix dependencies
-  for var Dependency := 0 to FNDependencies-1 do
-  begin
-    var Row := RowDependencies(Dependency);
-    if Row.FTransposed then Inc(FNTransposedDependencies);
-    if Row.FSymmetric then Inc(FNSymmetricDependencies);
-  end;
-  // Set transposed
-  if FNTransposedDependencies > 0 then
-  if FNTransposedDependencies+FNSymmetricDependencies = FNDependencies then
-    FTransposed := true
-  else
-    raise Exception.Create('Inconsistent dependencies');
-end;
-
-////////////////////////////////////////////////////////////////////////////////
-
 Constructor TScaledMatrixRow.Create(Id: Integer; ScaleFactor: Float64; MatrixRow: TScriptMatrixRow);
 begin
   inherited Create(Id);
   FNDependencies := 1;
   Factor := ScaleFactor;
   Row := MatrixRow;
-  Initialize;
+  SetStage;
 end;
 
-Function TScaledMatrixRow.RowDependencies(Dependency: Integer): TScriptMatrixRow;
+Function TScaledMatrixRow.Dependencies(Dependency: Integer): TScriptObject;
 begin
   Result := Row;
 end;
@@ -199,15 +160,24 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Constructor TMergedMatrixRow.Create(Id: Integer; const MatrixRows: array of TScriptMatrixRow);
+Constructor TMergedMatrixRow.Create(Id: Integer; Symmetric,Transposed: Boolean; const MatrixRows: array of TScriptMatrixRow);
 begin
   inherited Create(Id);
   FNDependencies := Length(MatrixRows);
-  Rows := TArrayBuilder<TScriptMatrixRow>.Create(MatrixRows);
-  Initialize;
+  if Symmetric then FSymmetric := true else FTransposed := Transposed;
+  // Set Rows and check Symmetric and Transposed-flags
+  SetLength(Rows,FNDependencies);
+  for var Row := low(MatrixRows) to high(MatrixRows) do
+  begin
+    Rows[Row] := MatrixRows[Row];
+    if Symmetric and not Rows[Row].Symmetric then raise Exception.Create('Matrix must be symmetric');
+    if Transposed and not (Rows[Row].Symmetric or Rows[Row].Transposed) then raise Exception.Create('Matrix must be transposed');
+    if not Transposed and Rows[Row].Transposed then raise Exception.Create('Matrix must not be transposed');
+  end;
+  SetStage;
 end;
 
-Function TMergedMatrixRow.RowDependencies(Dependency: Integer): TScriptMatrixRow;
+Function TMergedMatrixRow.Dependencies(Dependency: Integer): TScriptObject;
 begin
   Result := Rows[Dependency];
 end;

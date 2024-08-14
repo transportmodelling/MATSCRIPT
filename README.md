@@ -48,7 +48,34 @@ The read-command reads matrices from a matrix input file. In addition to the key
     <td>File identifier that can be used to reference the input file in subsequent command lines</td>
    <tr>
     <td>ids</td>
-    <td>Comma separated list of matrix identifiers that can be used to reference matrices (contained in the input file) in subsequent command lines (optional)</td>
+    <td>Comma separated list of matrix identifiers that can be used to reference matrices (contained in the input file) in subsequent command lines. The index in the list of identifiers coincides with the index of the matrix in the matrix input file. This (optional) key can thus only be used in the case of index based matrix access. In the case of label based matrix access the matrix-command must be used to specify the matrices in a matrix input file</td>
+ </tbody>
+</table>
+
+**matrix** <br>
+The matrix-command specifies a matrix that is read from a matrix input file. It takes the following key-value pairs as an argument:
+<table border="1">
+ <col style="width:10%">
+ <col style="width:90%">
+ <thead>
+  <tr>
+    <td><b>Key</b></td>
+    <td><b>Value</b></td>
+   </tr>
+ </thead>
+ <tbody>
+   <tr>
+    <td>file</td>
+    <td>File identifier of the matrix input file the matrix is read from</td>
+   <tr>
+    <td>index</td>
+    <td>Index of the matrix within the matrix input file. This key cannot be used together with the label key</td>
+   <tr>
+    <td>label</td>
+    <td>Label of the matrix to be read from the matrix input file. This key cannot be used together with the index key</td>
+   <tr>
+    <td>id</td>
+    <td>Matrix identifier that can be used to reference the matrix in subsequent command lines</td>
  </tbody>
 </table>
 

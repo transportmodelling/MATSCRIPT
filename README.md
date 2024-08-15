@@ -109,4 +109,6 @@ The transpose-command calculates the transposed of a matrix. It takes the follow
 # Dependencies
 MATSCRIPT uses the following libraries, that have been added as submodules:
 * https://github.com/transportmodelling/Utils
-* https://github.com/transportmodelling/matio 
+* https://github.com/transportmodelling/matio
+
+To use [hdf5](https://www.hdfgroup.org/) based matrix formats (such as [omx](https://github.com/osPlanning/omx)), the hdf5.dll must accompany the MATSCRIPT executable.

@@ -37,6 +37,7 @@ Type
       end;
     Var
       Line: Integer;
+      LoggedFileInfo: Boolean;
       FileProperties: TPropertySet;
       Selection: TSelection;
       Reader: TMatrixRowsReader;
@@ -74,7 +75,13 @@ end;
 
 Procedure TInputMatrixFile.OpenFile;
 begin
-  LogFile.InputFile('Line '+Line.ToString,FileProperties.ToPath(TMatrixFormat.FileProperty));
+  // Log file info
+  if not LoggedFileInfo then
+  begin
+    LoggedFileInfo := true;
+    LogFile.InputFile('Line '+Line.ToString,FileProperties.ToPath(TMatrixFormat.FileProperty));
+  end;
+  // Create reader
   case Selection.Status of
     fsIndexed: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Indices.Selection,Size);
     fsLabeled: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Labels.Selection,Size);

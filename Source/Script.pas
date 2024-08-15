@@ -452,6 +452,9 @@ begin
     begin
       // Activate staged objects.
       // This will activate required input files for this stage.
+      for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do
+      if InfoLoggers[InfoLogger].Stage = Stage then
+      InfoLoggers[InfoLogger].Active[Stage] := true;
       for var StagedObject := low(StagedObjects) to high(StagedObjects) do
       if StagedObjects[StagedObject].Stage = Stage then
       StagedObjects[StagedObject].Active[Stage] := true;

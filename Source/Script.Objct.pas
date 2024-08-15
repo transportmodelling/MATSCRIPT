@@ -29,6 +29,8 @@ Type
     Class Var Size: Integer;
     Class Var MaxStage: Integer;
   public
+    Constructor Create;
+  public
     Property Stage: Integer read FStage;
     Property Active[Stage: Integer]: Boolean read GetActive write SetActive;
     Property NDependencies: Integer read FNDependencies;
@@ -47,6 +49,12 @@ Type
 ////////////////////////////////////////////////////////////////////////////////
 implementation
 ////////////////////////////////////////////////////////////////////////////////
+
+Constructor TScriptObject.Create;
+begin
+  inherited Create;
+  ActiveStage := -1;
+end;
 
 Function TScriptObject.GetActive(Stage: integer): Boolean;
 begin

@@ -173,6 +173,7 @@ begin
   // Create matrix
   var Value := Arguments.ToFloat('value');
   var Matrix := TConstantMatrixRow.Create(Id,Value);
+  Matrix.Tag := Arguments['tag'];
   Matrices := Matrices + [Matrix];
 end;
 
@@ -185,6 +186,7 @@ begin
   var Matrix := GetMatrix(Arguments.ToInt('matrix'));
   var ScaleFactor := Arguments.ToFloat('factor');
   var ScaledMatrix := TScaledMatrixRow.Create(Id,ScaleFactor,Matrix);
+  ScaledMatrix.Tag := Arguments['tag'];
   Matrices := Matrices + [ScaledMatrix];
 end;
 

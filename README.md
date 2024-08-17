@@ -209,6 +209,30 @@ The write-command writes matrices to a matrix output file. In addition to the ke
  </tbody>
 </table>
 
+**stats** <br>
+The stats command writes matrix statistics to the console. If a log file is specified in the init command, the matrix statistics are also written to the log file. It takes the following key-value pairs as an argument:
+<table border="1">
+ <col style="width:10%">
+ <col style="width:90%">
+ <thead>
+  <tr>
+    <td><b>Key</b></td>
+    <td><b>Value</b></td>
+   </tr>
+ </thead>
+ <tbody>
+   <tr>
+    <td>rows</td>
+    <td>Comma separated list of rows to include in the statistics (optional, default equals to all rows)</td>
+   <tr>
+    <td>columns</td>
+    <td>Comma separated list of columns to include in the statistics (optional, default equals to all columns)</td>
+   <tr>
+    <td>matrices</td>
+    <td>Comma separated list of matrix identifiers of the matrices to include in the statistics</td>
+ </tbody>
+</table>
+
 # Dependencies
 MATSCRIPT uses the following libraries, that have been added as submodules:
 * https://github.com/transportmodelling/Utils

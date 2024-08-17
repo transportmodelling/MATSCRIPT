@@ -38,7 +38,6 @@ Type
     Procedure InterpretConstCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretScaleCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretMergeCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretSubtractCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretTransposeCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretStatisticsCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretSumOfAbsoluteDifferencesCommand(const [ref] Arguments: TPropertySet);
@@ -237,33 +236,6 @@ begin
   end;
 end;
 
-Procedure TScriptInterpreter.InterpretSubtractCommand(const [ref] Arguments: TPropertySet);
-begin
-  {
-  // Register matrix
-  var Id := Arguments.ToInt('id');
-  RegisterMatrix(Id);
-  // Create matrix
-  var Minuend := Arguments.ToInt('minuend');
-  if (Minuend > 0) and (Minuend < Length(MatrixIndices)) then
-  begin
-    var MinuendIndex := MatrixIndices[Minuend-1];
-    var Subtrahend := Arguments.ToInt('subtrahend');
-    if (Subtrahend > 0) and (Subtrahend < Length(MatrixIndices)) then
-    begin
-      var SubtrahendIndex := MatrixIndices[Subtrahend-1];
-      var DifferenceMatrix := TDifferenceMatrixRow.Create(Size);
-      DifferenceMatrix.Minuend := Matrices[MinuendIndex];
-      DifferenceMatrix.Subtrahend := Matrices[SubtrahendIndex];
-      Tags := Tags + [Arguments.ToStr('tag',Id.ToString)];
-      Matrices := Matrices + [DifferenceMatrix];
-    end else
-      raise Exception.Create('Invalid subtrahend matrix id');
-  end else
-    raise Exception.Create('Invalid minuend matrix id');
-  }
-end;
-
 Procedure TScriptInterpreter.InterpretTransposeCommand(const [ref] Arguments: TPropertySet);
 begin
   // Register matrix
@@ -392,11 +364,6 @@ begin
       begin
         Result := true;
         InterpretMergeCommand(Arguments);
-      end else
-      if SameText(Command,'subtract') then
-      begin
-        Result := true;
-        InterpretSubtractCommand(Arguments);
       end else
       if SameText(Command,'transpose') then
       begin

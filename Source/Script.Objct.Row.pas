@@ -143,6 +143,8 @@ Constructor TScaledMatrixRow.Create(Id: Integer; ScaleFactor: Float64; MatrixRow
 begin
   inherited Create(Id);
   FNDependencies := 1;
+  FSymmetric := MatrixRow.FSymmetric;
+  FTransposed := MatrixRow.FTransposed;
   Factor := ScaleFactor;
   Row := MatrixRow;
   SetStage;

@@ -1,6 +1,7 @@
 # MATSCRIPT
 A script interpreter for matrix manipulations, such as:
 * Convert matrix files to a different format
+* Scale matrices
 * Merge matrices
 * Transpose matrices
 * Get matrix statistics

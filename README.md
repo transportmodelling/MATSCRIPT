@@ -140,6 +140,33 @@ The const-command defines a matrix with constant values. It takes the following 
  </tbody>
 </table>
 
+**scale** <br>
+The scale-command multiplies all matrix cells with a fixed factor. It takes the following key-value pairs as an argument:
+<table border="1">
+ <col style="width:10%">
+ <col style="width:90%">
+ <thead>
+  <tr>
+    <td><b>Key</b></td>
+    <td><b>Value</b></td>
+   </tr>
+ </thead>
+ <tbody>
+   <tr>
+    <td>id</td>
+    <td>Matrix identifier that can be used to reference the scaled matrix in subsequent command lines</td>
+   <tr>
+    <td>matrix</td>
+    <td>Matrix identifier of the matrix being scaled</td>
+   <tr>
+    <td>factor</td>
+    <td>The multiplcation factor applied to all matrix cells</td>
+   <tr>
+    <td>tag</td>
+    <td>Matrix label to be used when writing the scaled matrix to a matrix output file</td>
+ </tbody>
+</table>
+
 # Dependencies
 MATSCRIPT uses the following libraries, that have been added as submodules:
 * https://github.com/transportmodelling/Utils

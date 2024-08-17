@@ -191,6 +191,24 @@ The merge-command calculates the sum of some matrices. It takes the following ke
  </tbody>
 </table>
 
+**write** <br>
+The write-command writes matrices to a matrix output file. In addition to the key-value pairs [specifying the file name and file format](https://github.com/transportmodelling/matio/wiki/File-specification), it takes the following key-value pairs as an argument:
+<table border="1">
+ <col style="width:10%">
+ <col style="width:90%">
+ <thead>
+  <tr>
+    <td><b>Key</b></td>
+    <td><b>Value</b></td>
+   </tr>
+ </thead>
+ <tbody>
+   <tr>
+    <td>matrices</td>
+    <td>Comma separated list of matrix identifiers of the matrices that are written to the output file</td>
+ </tbody>
+</table>
+
 # Dependencies
 MATSCRIPT uses the following libraries, that have been added as submodules:
 * https://github.com/transportmodelling/Utils

@@ -26,8 +26,17 @@ The init-command initializes the script interpreter and should be the first comm
     <td>size</td>
     <td>Size of the matrices being processed in the script</td>
    <tr>
+    <td>round</td>
+    <td>Rounding threshold. When writing matrices to file, all matrix cells with an absolute value less than the threshold get rounded to zero (optional, default equals 0)</td>
+   <tr>
+    <td>row</td>
+    <td>Header for the Row-column used in text output files (optional, default equals "Row")</td>
+   <tr>
+    <td>column</td>
+    <td>Header for the Column-column used in text output files (optional, default equals "Column")</td>
+   <tr>
     <td>log</td>
-    <td>Log file name (optional)</td>
+    <td>Log file name (optional, default no logging to file)</td>
  </tbody>
 </table>
 
@@ -103,6 +112,30 @@ The transpose-command calculates the transposed of a matrix. It takes the follow
    <tr>
     <td>tag</td>
     <td>Matrix label to be used when writing the transposed matrix to a matrix output file</td>
+ </tbody>
+</table>
+
+**const** <br>
+The const-command defines a matrix with constant values. It takes the following key-value pairs as an argument:
+<table border="1">
+ <col style="width:10%">
+ <col style="width:90%">
+ <thead>
+  <tr>
+    <td><b>Key</b></td>
+    <td><b>Value</b></td>
+   </tr>
+ </thead>
+ <tbody>
+   <tr>
+    <td>id</td>
+    <td>Matrix identifier that can be used to reference the matrix in subsequent command lines</td>
+   <tr>
+    <td>value</td>
+    <td>The value of the matrix cells</td>
+   <tr>
+    <td>tag</td>
+    <td>Matrix label to be used when writing the matrix to a matrix output file</td>
  </tbody>
 </table>
 

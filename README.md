@@ -26,8 +26,17 @@ The init-command initializes the script interpreter and should be the first comm
     <td>size</td>
     <td>Size of the matrices being processed in the script</td>
    <tr>
+    <td>round</td>
+    <td>Rounding threshold. When writing matrices to file, all matrix cells with an absolute value less than the threshold get rounded to zero (optional, default equals 0)</td>
+   <tr>
+    <td>row</td>
+    <td>Header for the Row-column used in text output files (optional, default equals "Row")</td>
+   <tr>
+    <td>column</td>
+    <td>Header for the Column-column used in text output files (optional, default equals "Column")</td>
+   <tr>
     <td>log</td>
-    <td>Log file name (optional)</td>
+    <td>Log file name (optional, default no logging to file)</td>
  </tbody>
 </table>
 

@@ -167,6 +167,30 @@ The scale-command multiplies all matrix cells with a fixed factor. It takes the 
  </tbody>
 </table>
 
+**merge** <br>
+The merge-command calculates the sum of some matrices. It takes the following key-value pairs as an argument:
+<table border="1">
+ <col style="width:10%">
+ <col style="width:90%">
+ <thead>
+  <tr>
+    <td><b>Key</b></td>
+    <td><b>Value</b></td>
+   </tr>
+ </thead>
+ <tbody>
+   <tr>
+    <td>id</td>
+    <td>Matrix identifier that can be used to reference the merged matrix in subsequent command lines</td>
+   <tr>
+    <td>matrices</td>
+    <td>Comma separated list of the matrix identifiers of the matrices that will be merged</td>
+   <tr>
+    <td>tag</td>
+    <td>Matrix label to be used when writing the merged matrix to a matrix output file</td>
+ </tbody>
+</table>
+
 # Dependencies
 MATSCRIPT uses the following libraries, that have been added as submodules:
 * https://github.com/transportmodelling/Utils

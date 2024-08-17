@@ -13,7 +13,8 @@ interface
 
 Uses
   SysUtils, Classes, Math, Log, Parse, ArrayHlp, PropSet, Ranges, matio, matio.formats, matio.io,
-  Script.Objct, Script.Objct.Row, Script.Objct.Mtrx, Script.Objct.Inp, Script.Objct.Outp, Script.Objct.Info;
+  matio.text, Script.Objct, Script.Objct.Row, Script.Objct.Mtrx, Script.Objct.Inp, Script.Objct.Outp,
+  Script.Objct.Info;
 
 Type
   TScriptInterpreter = Class
@@ -98,6 +99,9 @@ Procedure TScriptInterpreter.InterpretInitCommand(const [ref] Arguments: TProper
 begin
   Initialized := true;
   TScriptObject.Size := Arguments.ToInt('size');
+  TMatrixWriter.RoundToZeroThreshold := Arguments.ToFloat('round',0);
+  TTextMatrixWriter.RowLabel := Arguments.ToStr('row','Row');
+  TTextMatrixWriter.ColumnLabel := Arguments.ToStr('column','Column');
   if TScriptObject.Size > 0 then
   begin
     if Arguments.Contains('log') then

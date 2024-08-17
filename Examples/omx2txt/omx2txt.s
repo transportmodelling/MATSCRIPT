@@ -1,7 +1,7 @@
 * Converts the IVT and TRANSFERS matrices from the sample input file from omx to text format.
 * No support for zone numbers stored along with the matrix values in the omx file.
 * omx-labels are case sensitive!
-init size=485
+init size=485; row=origin; column=destination
 read file=input\example.omx; format=omx; id=1
 matrix file=1; label=IVT; id=1
 matrix file=1; label=TRANSFERS; id=2

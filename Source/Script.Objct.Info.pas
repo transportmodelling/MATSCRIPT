@@ -174,6 +174,8 @@ begin
     LogFile.Log('Matrices: ' + MatrixRows[0].Id.ToString+','+MatrixRows[1].Id.ToString)
   else
     LogFile.Log('Matrices: ' + MatrixRows[1].Id.ToString+','+MatrixRows[0].Id.ToString);
+  LogFile.Log('Rows: ' + RowsSelection.AsString);
+  LogFile.Log('Columns: ' + ColumnsSelection.AsString);
   LogFile.Log('Sum of absolute differences: ' + FloatToStr(SumOfAbsoluteDifferences));
 end;
 

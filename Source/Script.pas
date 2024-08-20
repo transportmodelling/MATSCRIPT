@@ -40,7 +40,7 @@ Type
     Procedure InterpretMergeCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretTransposeCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretStatisticsCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretSumOfAbsoluteDifferencesCommand(const [ref] Arguments: TPropertySet);
+    Procedure InterpretCompareCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretWriteCommand(const [ref] Arguments: TPropertySet);
     Function InterpretLine(const Command,Arguments: String): Boolean;
     Procedure InterpretLines;
@@ -274,7 +274,7 @@ begin
   InfoLoggers := InfoLoggers + [Statistics];
 end;
 
-Procedure TScriptInterpreter.InterpretSumOfAbsoluteDifferencesCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretCompareCommand(const [ref] Arguments: TPropertySet);
 Var
   Id0,Id1: Integer;
   Rows,Columns: TRanges;
@@ -370,10 +370,10 @@ begin
         Result := true;
         InterpretTransposeCommand(Arguments);
       end else
-      if SameText(Command,'sad') then
+      if SameText(Command,'compare') then
       begin
         Result := true;
-        InterpretSumOfAbsoluteDifferencesCommand(Arguments);
+        InterpretCompareCommand(Arguments);
       end else
       if SameText(Command,'stats') then
       begin

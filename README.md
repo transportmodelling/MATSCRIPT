@@ -5,6 +5,7 @@ A script interpreter for matrix manipulations, such as:
 * Merge matrices
 * Transpose matrices
 * Get matrix statistics
+* Compare matrices
 
 # Scripting Syntax
 A script file is a ASCII text file containing a series of commands lines that are executed by the MATSCRIPT-program line by line. Each line begins with a command, followed by a sequence of key=value pairs, separated by semicolons. Any lines that begin with the asterisk character (*) are considered comments and are ignored by the MATSCRIPT-program. The scritp file name is passed as an command line argument to the MATSCRIPT-program.
@@ -230,6 +231,30 @@ The stats command writes matrix statistics to the console. If a log file is spec
    <tr>
     <td>matrices</td>
     <td>Comma separated list of matrix identifiers of the matrices to include in the statistics</td>
+ </tbody>
+</table>
+
+**compare** <br>
+The compare command writes the sum of absolute differences bewteen two matrices to the console. If a log file is specified in the init command, the sum of absolute differences is also written to the log file. It takes the following key-value pairs as an argument:
+<table border="1">
+ <col style="width:10%">
+ <col style="width:90%">
+ <thead>
+  <tr>
+    <td><b>Key</b></td>
+    <td><b>Value</b></td>
+   </tr>
+ </thead>
+ <tbody>
+   <tr>
+    <td>rows</td>
+    <td>Comma separated list of rows to include in the comparison (optional, default equals to all rows)</td>
+   <tr>
+    <td>columns</td>
+    <td>Comma separated list of columns to include in the comparison (optional, default equals to all columns)</td>
+   <tr>
+    <td>matrices</td>
+    <td>Matrix identifiers of the two matrices to be compared, separated by a comma</td>
  </tbody>
 </table>
 

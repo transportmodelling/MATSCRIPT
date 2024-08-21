@@ -37,6 +37,7 @@ Type
     Procedure InterpretMatrixCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretConstCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretScaleCommand(const [ref] Arguments: TPropertySet);
+    Procedure InterpretRoundCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretMergeCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretTransposeCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretStatisticsCommand(const [ref] Arguments: TPropertySet);
@@ -187,6 +188,19 @@ begin
   var ScaledMatrix := TScaledMatrixRow.Create(Id,ScaleFactor,Matrix);
   ScaledMatrix.Tag := Arguments['tag'];
   Matrices := Matrices + [ScaledMatrix];
+end;
+
+Procedure TScriptInterpreter.InterpretRoundCommand(const [ref] Arguments: TPropertySet);
+begin
+  // Register matrix
+  var Id := Arguments.ToInt('id');
+  RegisterMatrix(Id);
+  // Create matrix
+  var Matrix := GetMatrix(Arguments.ToInt('matrix'));
+  var NDigits := Arguments.ToInt('digits',0);
+  var RoundedMatrix := TRoundedMatrixRow.Create(Id,NDigits,Matrix);
+  RoundedMatrix.Tag := Arguments['tag'];
+  Matrices := Matrices + [RoundedMatrix];
 end;
 
 Procedure TScriptInterpreter.InterpretMergeCommand(const [ref] Arguments: TPropertySet);
@@ -359,6 +373,11 @@ begin
       begin
         Result := true;
         InterpretScaleCommand(Arguments);
+      end else
+      if SameText(Command,'round') then
+      begin
+        Result := true;
+        InterpretRoundCommand(Arguments);
       end else
       if SameText(Command,'merge') then
       begin

@@ -67,6 +67,17 @@ Type
     Function GetValues(const Column: Integer): Float64; override; final;
   end;
 
+  TRoundedMatrixRow = Class(TScriptMatrixRow)
+  private
+    Factor: Float64;
+    Row: TScriptMatrixRow;
+  strict protected
+    Function Dependencies(Dependency: Integer): TScriptObject; override;
+  public
+    Constructor Create(Id: Integer; NDigits: Byte; MatrixRow: TScriptMatrixRow);
+    Function GetValues(const Column: Integer): Float64; override; final;
+  end;
+
   TMergedMatrixRow = Class(TScriptMatrixRow)
   private
     Rows: TArray<TScriptMatrixRow>;
@@ -158,6 +169,30 @@ end;
 Function TScaledMatrixRow.GetValues(const Column: Integer): Float64;
 begin
   Result := Factor*Row.GetValues(Column);
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+
+Constructor TRoundedMatrixRow.Create(Id: Integer; NDigits: Byte; MatrixRow: TScriptMatrixRow);
+begin
+  inherited Create(Id);
+  FNDependencies := 1;
+  FSymmetric := MatrixRow.FSymmetric;
+  FTransposed := MatrixRow.FTransposed;
+  Factor := 1.0;
+  for var Digit := 1 to NDigits do Factor := 10*Factor;
+  Row := MatrixRow;
+  SetStage;
+end;
+
+Function TRoundedMatrixRow.Dependencies(Dependency: Integer): TScriptObject;
+begin
+  Result := Row;
+end;
+
+Function TRoundedMatrixRow.GetValues(const Column: Integer): Float64;
+begin
+  Result := Round(Factor*Row.GetValues(Column))/Factor;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////

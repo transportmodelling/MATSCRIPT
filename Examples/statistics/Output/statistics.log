@@ -1,5 +1,5 @@
-START 8/21/2024 11:42:52 AM
-Executable: MATSCRIPT.exe; 8/21/2024 10:09:54 AM; 2285568 bytes
+START 8/25/2024 9:18:04 PM
+Executable: MATSCRIPT.exe; 8/25/2024 9:05:26 PM; 2290176 bytes
 Computer: PC04-SIG
 
 Matrices: 1
@@ -60,8 +60,8 @@ Total: 5083.4
 Matrices: 1-3
 Rows: 1-10
 Columns: 1-10
-Minimum: 0.42 (row=5; column=9)
-Maximum: 99.44 (row=7; column=1)
+Minimum: 0.42 (matrix=3; row=5; column=9)
+Maximum: 99.44 (matrix=2; row=7; column=1)
 Cells < 0: 0
 Cells = 0: 0
 Cells > 0: 300
@@ -78,4 +78,4 @@ Script: F:\Repos\MATSCRIPT\Examples\statistics\statistics.s; 8/20/2024 3:20:13 P
 Line 3: F:\...\Examples\statistics\input\random1.csv; 1/14/2024 4:58:54 PM; 1098 bytes
 Line 4: F:\...\Examples\statistics\input\random2.dat; 1/14/2024 4:58:54 PM; 1708 bytes
 
-STOP 8/21/2024 11:42:52 AM (Run time: 00:00:00)
+STOP 8/25/2024 9:18:04 PM (Run time: 00:00:00)

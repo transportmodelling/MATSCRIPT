@@ -31,6 +31,7 @@ Type
     OutputMatrixFiles: array of TOutputMatrixFile;
     Procedure RegisterMatrix(const Id: Integer);
     Function  GetMatrix(const Id: Integer): TScriptMatrixRow;
+    Function  GetMatrices(const Ids: array of Integer; out NTransposedMatrices,NSymmetricMatrices: Integer): TArray<TScriptMatrixRow>;
     Procedure CreateInputMatrix(const [ref] Arguments: TPropertySet; const FileIndex: Integer);
     Procedure InterpretInitCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretReadCommand(const [ref] Arguments: TPropertySet);
@@ -86,6 +87,19 @@ begin
       raise Exception.Create('Invalid matrix id ' + Id.ToString);
   end else
     raise Exception.Create('Invalid matrix id ' + Id.ToString);
+end;
+
+Function TScriptInterpreter.GetMatrices(const Ids: array of Integer; out NTransposedMatrices,NSymmetricMatrices: Integer): TArray<TScriptMatrixRow>;
+begin
+  NTransposedMatrices := 0;
+  NSymmetricMatrices := 0;
+  SetLength(Result,Length(Ids));
+  for var Matrix := low(Ids) to high(Ids) do
+  begin
+    Result[Matrix] := GetMatrix(Ids[Matrix]);
+    if Result[Matrix].Symmetric then Inc(NSymmetricMatrices);
+    if Result[Matrix].Transposed then Inc(NTransposedMatrices);
+  end;
 end;
 
 Procedure TScriptInterpreter.CreateInputMatrix(const [ref] Arguments: TPropertySet; const FileIndex: Integer);
@@ -205,23 +219,15 @@ end;
 
 Procedure TScriptInterpreter.InterpretMergeCommand(const [ref] Arguments: TPropertySet);
 Var
-  MergeMatrices: array of TScriptMatrixRow;
+  NTransposedMatrices,NSymmetricMatrices: Integer;
 begin
   // Register matrix
   var Id := Arguments.ToInt('id');
   RegisterMatrix(Id);
   // Set matrix selection
-  var NSymmetricMatrices := 0;
-  var NTransposedMatrices := 0;
   var Ids := TRanges.Create(Arguments['matrices']).Values;
   var NMatrices := Ids.Length;
-  SetLength(MergeMatrices,NMatrices);
-  for var Matrix := low(Ids) to high(Ids) do
-  begin
-    MergeMatrices[Matrix] := GetMatrix(Ids[Matrix]);
-    if MergeMatrices[Matrix].Symmetric then Inc(NSymmetricMatrices);
-    if MergeMatrices[Matrix].Transposed then Inc(NTransposedMatrices);
-  end;
+  var MergeMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
   // Create merged matrix
   if NMatrices = NSymmetricMatrices then
   begin
@@ -258,16 +264,16 @@ begin
   // Create transposed matrix
   var MatrixId := Arguments.ToInt('matrix');
   var Matrix := GetMatrix(MatrixId);
-  var TransposedMatrix := TTransposedMatrixRow.Create(MatrixId,Matrix);
+  var TransposedMatrix := TTransposedMatrixRow.Create(Id,Matrix);
   TransposedMatrix.Tag := Arguments['tag'];
   Matrices := Matrices + [TransposedMatrix];
 end;
 
 Procedure TScriptInterpreter.InterpretStatisticsCommand(const [ref] Arguments: TPropertySet);
 Var
-  StatisticsMatrices: array of TScriptMatrixRow;
   Rows,Columns: TRanges;
   Selection: String;
+  NTransposedMatrices,NSymmetricMatrices: Integer;
 begin
   // Set Rows selection
   if Arguments.Contains('rows',Selection) then
@@ -281,11 +287,20 @@ begin
     Columns := TRanges.Create([TRange.Create(1,TScriptObject.Size)]);
   // Set matrix selection
   var Ids := TRanges.Create(Arguments['matrices']).Values;
-  SetLength(StatisticsMatrices,Ids.Length);
-  for var Matrix := low(Ids) to high(Ids) do StatisticsMatrices[Matrix] := GetMatrix(Ids[Matrix]);
+  var NMatrices := Length(Ids);
+  var StatisticsMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
   // Create info object
-  var Statistics := TMatrixStatistics.Create(Rows,Columns,StatisticsMatrices);
-  InfoLoggers := InfoLoggers + [Statistics];
+  if NTransposedMatrices = 0 then
+  begin
+    var Statistics := TMatrixStatistics.Create(Rows,Columns,StatisticsMatrices,false);
+    InfoLoggers := InfoLoggers + [Statistics];
+  end else
+  begin
+    // Create separate statistic for transposed and non-transposed matrices
+    var TransposedStatistics := TMatrixStatistics.Create(Columns,Rows,StatisticsMatrices,true);
+    var Statistics := TMatrixStatistics.Create(Rows,Columns,StatisticsMatrices,TransposedStatistics);
+    InfoLoggers := InfoLoggers + [TransposedStatistics,Statistics];
+  end;
 end;
 
 Procedure TScriptInterpreter.InterpretCompareCommand(const [ref] Arguments: TPropertySet);

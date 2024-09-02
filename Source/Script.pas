@@ -308,6 +308,7 @@ Var
   Id0,Id1: Integer;
   Rows,Columns: TRanges;
   Selection: String;
+  SumOfAbsoluteDifferences: TSumOfAbsoluteDifferences;
 begin
   Arguments.Parse('matrices').AssignToVar([Id0,Id1]);
   // Set Rows selection
@@ -324,7 +325,32 @@ begin
   var Matrix0 := GetMatrix(Id0);
   var Matrix1 := GetMatrix(Id1);
   // Create info object
-  var SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,Matrix0,Matrix1);
+  if Matrix0.Transposed then
+    if Matrix1.Transposed then
+      SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Columns,Rows,Matrix0,Matrix1)
+    else
+      begin
+        var MemMatrix := TMemMatrix.Create([Matrix0]);
+        var MemMatrixReader := TMemMatrixReader.Create(Matrix0.Id,MemMatrix);
+        MemMatrixReader.Tag := Matrix0.Tag;
+        StagedObjects := StagedObjects + [MemMatrix];
+        Matrices := Matrices + [MemMatrixReader];
+        SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,MemMatrixReader,Matrix1);
+        Inc(NMatrices);
+      end
+  else
+    if Matrix1.Transposed then
+      begin
+        var MemMatrix := TMemMatrix.Create([Matrix1]);
+        var MemMatrixReader := TMemMatrixReader.Create(Matrix1.Id,MemMatrix);
+        MemMatrixReader.Tag := Matrix1.Tag;
+        StagedObjects := StagedObjects + [MemMatrix];
+        Matrices := Matrices + [MemMatrixReader];
+        SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,Matrix0,MemMatrixReader);
+        Inc(NMatrices);
+      end
+    else
+      SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,Matrix0,Matrix1);
   InfoLoggers := InfoLoggers + [SumOfAbsoluteDifferences];
 end;
 

@@ -25,12 +25,13 @@ Type
     FileIndices: array {file id} of Integer;
     InputMatrixFiles: array {file index} of TInputMatrixFile;
     MatrixIndices: array {matrix id} of Integer;
-    Matrices: array {matrix index} of TScriptMatrixRow;
+    Matrices,MemMatrices: array {matrix index} of TScriptMatrixRow;
     InfoLoggers: array {logger} of TInfoLogger;
     StagedObjects: array {object} of TStagedObject;
     OutputMatrixFiles: array of TOutputMatrixFile;
     Procedure RegisterMatrix(const Id: Integer);
     Function  GetMatrix(const Id: Integer): TScriptMatrixRow;
+    Function  GetMemMatrix(const Matrix: TScriptMatrixRow): TScriptMatrixRow;
     Function  GetMatrices(const Ids: array of Integer; out NTransposedMatrices,NSymmetricMatrices: Integer): TArray<TScriptMatrixRow>;
     Procedure CreateInputMatrix(const [ref] Arguments: TPropertySet; const FileIndex: Integer);
     Procedure InterpretInitCommand(const [ref] Arguments: TPropertySet);
@@ -87,6 +88,27 @@ begin
       raise Exception.Create('Invalid matrix id ' + Id.ToString);
   end else
     raise Exception.Create('Invalid matrix id ' + Id.ToString);
+end;
+
+Function TScriptInterpreter.GetMemMatrix(const Matrix: TScriptMatrixRow): TScriptMatrixRow;
+begin
+  if Matrix.Transposed then
+  begin
+    var Index := MatrixIndices[Matrix.Id-1];
+    SetLength(MemMatrices,Length(Matrices));
+    if MemMatrices[Index] = nil then
+    begin
+      // Store transposed matrix in memomory and create reader.
+      // The memory matrix reader gets the same Id, but it is not registered.
+      var MemMatrix := TMemMatrix.Create([Matrix]);
+      MemMatrices[Index] := TMemMatrixReader.Create(Matrix.Id,MemMatrix);
+      MemMatrices[Index].Tag := Matrix.Tag;
+      StagedObjects := StagedObjects + [MemMatrix];
+      Matrices := Matrices + [MemMatrices[Index]];
+    end;
+    Result := MemMatrices[Index];
+  end else
+    Result := Matrix;
 end;
 
 Function TScriptInterpreter.GetMatrices(const Ids: array of Integer; out NTransposedMatrices,NSymmetricMatrices: Integer): TArray<TScriptMatrixRow>;
@@ -330,23 +352,15 @@ begin
       SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Columns,Rows,Matrix0,Matrix1)
     else
       begin
-        var MemMatrix := TMemMatrix.Create([Matrix0]);
-        var MemMatrixReader := TMemMatrixReader.Create(Matrix0.Id,MemMatrix);
-        MemMatrixReader.Tag := Matrix0.Tag;
-        StagedObjects := StagedObjects + [MemMatrix];
-        Matrices := Matrices + [MemMatrixReader];
-        SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,MemMatrixReader,Matrix1);
+        var MemMatrix := GetMemMatrix(Matrix0);
+        SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,MemMatrix,Matrix1);
         Inc(NMatrices);
       end
   else
     if Matrix1.Transposed then
       begin
-        var MemMatrix := TMemMatrix.Create([Matrix1]);
-        var MemMatrixReader := TMemMatrixReader.Create(Matrix1.Id,MemMatrix);
-        MemMatrixReader.Tag := Matrix1.Tag;
-        StagedObjects := StagedObjects + [MemMatrix];
-        Matrices := Matrices + [MemMatrixReader];
-        SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,Matrix0,MemMatrixReader);
+        var MemMatrix := GetMemMatrix(Matrix1);
+        SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,Matrix0,MemMatrix);
         Inc(NMatrices);
       end
     else
@@ -366,14 +380,8 @@ begin
     OutputMatrices[Matrix] := GetMatrix(Ids[Matrix]);
     if OutputMatrices[Matrix].Transposed then
     begin
-      // Store transposed matrix in memomory and create reader.
-      // The memory matrix reader gets the same Id, but it is not registered.
-      var MemMatrix := TMemMatrix.Create([OutputMatrices[Matrix]]);
-      var MemMatrixReader := TMemMatrixReader.Create(OutputMatrices[Matrix].Id,MemMatrix);
-      MemMatrixReader.Tag := OutputMatrices[Matrix].Tag;
-      StagedObjects := StagedObjects + [MemMatrix];
-      Matrices := Matrices + [MemMatrixReader];
-      OutputMatrices[Matrix] := MemMatrixReader;
+      var MemMatrix := GetMemMatrix(OutputMatrices[Matrix]);
+      OutputMatrices[Matrix] := MemMatrix;
       Inc(NMatrices);
     end;
   end;

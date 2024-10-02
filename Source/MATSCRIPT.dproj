@@ -7,7 +7,7 @@
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Console</AppType>
         <FrameworkType>None</FrameworkType>
-        <ProjectVersion>20.1</ProjectVersion>
+        <ProjectVersion>20.2</ProjectVersion>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <ProjectName Condition="'$(ProjectName)'==''">MATSCRIPT</ProjectName>
     </PropertyGroup>
@@ -93,6 +93,12 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="Script.pas"/>
+        <DCCReference Include="Script.Objct.pas"/>
+        <DCCReference Include="Script.Objct.Row.pas"/>
+        <DCCReference Include="Script.Objct.Mtrx.pas"/>
+        <DCCReference Include="Script.Objct.Inp.pas"/>
+        <DCCReference Include="Script.Objct.Info.pas"/>
+        <DCCReference Include="Script.Objct.Outp.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

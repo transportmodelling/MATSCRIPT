@@ -18,4 +18,5 @@ scale matrix=2; factor=2; id=5
 merge matrices=1,3,4,5; tag=result; id=6
 write matrices=6; file=output\merged.txt; format=txt; delim=tab; header=false
 write matrices=6; file=output\merged.omx; format=omx
+write matrices=6; file=output\merged.Cube-matrix; format=cube
 write matrices=6; file=output\merged.mtp; format=mtp; prec=4

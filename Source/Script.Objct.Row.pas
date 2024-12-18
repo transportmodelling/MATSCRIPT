@@ -88,6 +88,16 @@ Type
     Function GetValues(const Column: Integer): Float64; override; final;
   end;
 
+  TProductMatrixRow = Class(TScriptMatrixRow)
+  private
+    Rows: TArray<TScriptMatrixRow>;
+  strict protected
+    Function Dependencies(Dependency: Integer): TScriptObject; override;
+  public
+    Constructor Create(Id: Integer; Symmetric,Transposed: Boolean; const MatrixRows: array of TScriptMatrixRow);
+    Function GetValues(const Column: Integer): Float64; override; final;
+  end;
+
 ////////////////////////////////////////////////////////////////////////////////
 implementation
 ////////////////////////////////////////////////////////////////////////////////
@@ -223,6 +233,36 @@ Function TMergedMatrixRow.GetValues(const Column: Integer): Float64;
 begin
   Result := 0.0;
   for var Row := low(Rows) to high(Rows) do Result := Result + Rows[Row].GetValues(Column);
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+
+Constructor TProductMatrixRow.Create(Id: Integer; Symmetric,Transposed: Boolean; const MatrixRows: array of TScriptMatrixRow);
+begin
+  inherited Create(Id);
+  FNDependencies := Length(MatrixRows);
+  if Symmetric then FSymmetric := true else FTransposed := Transposed;
+  // Set Rows and check Symmetric and Transposed-flags
+  SetLength(Rows,FNDependencies);
+  for var Row := low(MatrixRows) to high(MatrixRows) do
+  begin
+    Rows[Row] := MatrixRows[Row];
+    if Symmetric and not Rows[Row].Symmetric then raise Exception.Create('Matrix must be symmetric');
+    if Transposed and not (Rows[Row].Symmetric or Rows[Row].Transposed) then raise Exception.Create('Matrix must be transposed');
+    if not Transposed and Rows[Row].Transposed then raise Exception.Create('Matrix must not be transposed');
+  end;
+  SetStage;
+end;
+
+Function TProductMatrixRow.Dependencies(Dependency: Integer): TScriptObject;
+begin
+  Result := Rows[Dependency];
+end;
+
+Function TProductMatrixRow.GetValues(const Column: Integer): Float64;
+begin
+  Result := 1.0;
+  for var Row := low(Rows) to high(Rows) do Result := Result*Rows[Row].GetValues(Column);
 end;
 
 end.

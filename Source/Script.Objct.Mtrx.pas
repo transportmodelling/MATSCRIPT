@@ -15,18 +15,21 @@ Uses
   mat, matio, ArrayBld, Script.Objct, Script.Objct.Row;
 
 Type
+  TMatrixOperation = (moSum,moProduct);
+
   TMemMatrix = Class(TStagedObject)
   // Calculates the sum of matrices. The result is hold in memory because
   // at least 1 of the Matrices is transposed, so a full cycle over all rows
   // is required to obtain the result.
   private
     Rows: TArray<TScriptMatrixRow>;
+    Operation: TMatrixOperation;
     Matrix: TFloat64Matrices;
   strict protected
     Function Dependencies(Dependency: Integer): TScriptObject; override;
     Procedure Update(Row: Integer); override;
   public
-    Constructor Create(const MatrixRows: array of TScriptMatrixRow);
+    Constructor Create(const MatrixRows: array of TScriptMatrixRow; MatrixOperation: TMatrixOperation);
     Destructor Destroy; override;
   end;
 
@@ -44,11 +47,12 @@ Type
 implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-Constructor TMemMatrix.Create(const MatrixRows: array of TScriptMatrixRow);
+Constructor TMemMatrix.Create(const MatrixRows: array of TScriptMatrixRow; MatrixOperation: TMatrixOperation);
 begin
   inherited Create;
   FNDependencies := Length(MatrixRows);
   Rows := TArrayBuilder<TScriptMatrixRow>.Create(MatrixRows);
+  Operation := MatrixOperation;
   Matrix := TFloat64Matrices.Create(1,Size);
 end;
 
@@ -62,7 +66,10 @@ begin
   for var MatrixRow in Rows do
   if MatrixRow.Transposed then
     for var Column := 0 to Size-1 do
-      Matrix.Values[0,Column,Row-1] := Matrix.Values[0,Column,Row-1] + MatrixRow.GetValues(Column)
+    case Operation of
+      moSum: Matrix.Values[0,Column,Row-1] := Matrix.Values[0,Column,Row-1] + MatrixRow.GetValues(Column);
+      moProduct: Matrix.Values[0,Column,Row-1] := Matrix.Values[0,Column,Row-1]*MatrixRow.GetValues(Column)
+    end
   else
     for var Column := 0 to Size-1 do
       Matrix.Values[0,Row-1,Column] := Matrix.Values[0,Row-1,Column] + MatrixRow.GetValues(Column)

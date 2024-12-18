@@ -75,17 +75,21 @@ end;
 
 Procedure TInputMatrixFile.OpenFile;
 begin
-  // Log file info
-  if not LoggedFileInfo then
+  if TMatrixReaderFormat.FileExists(FileProperties) then
   begin
-    LoggedFileInfo := true;
-    LogFile.InputFile('Line '+Line.ToString,FileProperties.ToPath(TMatrixFormat.FileProperty));
-  end;
-  // Create reader
-  case Selection.Status of
-    fsIndexed: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Indices.Selection,Size);
-    fsLabeled: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Labels.Selection,Size);
-  end;
+    // Log file info
+    if not LoggedFileInfo then
+    begin
+      LoggedFileInfo := true;
+      LogFile.InputFile('Line '+Line.ToString,FileProperties.ToPath(TMatrixFormat.FileProperty));
+    end;
+    // Create reader
+    case Selection.Status of
+      fsIndexed: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Indices.Selection,Size);
+      fsLabeled: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Labels.Selection,Size);
+    end;
+  end else
+    raise Exception.Create('File does not exist (' + TMatrixFormat.FileName(FileProperties,false) + ')');
 end;
 
 Procedure TInputMatrixFile.Read;

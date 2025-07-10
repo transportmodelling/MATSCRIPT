@@ -14,7 +14,7 @@ interface
 Uses
   SysUtils, Classes, Math, Log, Parse, ArrayHlp, PropSet, Ranges, matio, matio.formats, matio.io,
   matio.text, Script.Objct, Script.Objct.Row, Script.Objct.Mtrx, Script.Objct.Inp, Script.Objct.Outp,
-  Script.Objct.Info;
+  Script.Objct.Info, Script.Objct.Info.Stats, Script.Objct.Info.Totals;
 
 Type
   TScriptInterpreter = Class
@@ -48,6 +48,7 @@ Type
     Procedure InterpretMultiplyCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretTransposeCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretStatisticsCommand(const [ref] Arguments: TPropertySet);
+    Procedure InterpretTotalsCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretCompareCommand(const [ref] Arguments: TPropertySet);
     Procedure InterpretWriteCommand(const [ref] Arguments: TPropertySet);
     Function InterpretLine(const Command,Arguments: String): TLineHandling;
@@ -353,20 +354,26 @@ begin
     Columns := TRanges.Create([TRange.Create(1,TScriptObject.Size)]);
   // Set matrix selection
   var Ids := TRanges.Create(Arguments['matrices']).Values;
-  var NMatrices := Length(Ids);
   var StatisticsMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
-  // Create info object
-  if NTransposedMatrices = 0 then
-  begin
-    var Statistics := TMatrixStatistics.Create(Rows,Columns,StatisticsMatrices,false);
-    InfoLoggers := InfoLoggers + [Statistics];
-  end else
-  begin
-    // Create separate statistic for transposed and non-transposed matrices
-    var TransposedStatistics := TMatrixStatistics.Create(Columns,Rows,StatisticsMatrices,true);
-    var Statistics := TMatrixStatistics.Create(Rows,Columns,StatisticsMatrices,TransposedStatistics);
-    InfoLoggers := InfoLoggers + [TransposedStatistics,Statistics];
-  end;
+  // Create statistics object
+  var StatisticsLogger := TMatrixStatisticsLogger.Create(Rows,Columns,StatisticsMatrices);
+  InfoLoggers := InfoLoggers + [StatisticsLogger];
+end;
+
+Procedure TScriptInterpreter.InterpretTotalsCommand(const [ref] Arguments: TPropertySet);
+Var
+  Rows,Columns: TRanges;
+  Selection: String;
+  NTransposedMatrices,NSymmetricMatrices: Integer;
+begin
+  // Set matrix selection
+  var Ids := TRanges.Create(Arguments['matrices']).Values;
+  var TotalsMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
+  // Create statistics object
+  var FileName := Arguments.ToPath(TMatrixFormat.FileProperty);
+  var TotalsLogger := TMatrixTotalsLogger.Create(FileName,TotalsMatrices);
+  LogFile.OutputFile('Line: '+LineCount.ToString,FileName);
+  InfoLoggers := InfoLoggers + [TotalsLogger];
 end;
 
 Procedure TScriptInterpreter.InterpretCompareCommand(const [ref] Arguments: TPropertySet);
@@ -453,6 +460,7 @@ begin
       if SameText(Command,'transpose') then InterpretTransposeCommand(Arguments) else
       if SameText(Command,'compare') then InterpretCompareCommand(Arguments) else
       if SameText(Command,'stats') then InterpretStatisticsCommand(Arguments) else
+      if SameText(Command,'totals') then InterpretTotalsCommand(Arguments) else
       if SameText(Command,'write') then InterpretWriteCommand(Arguments) else
       Result := Unhandled
     else

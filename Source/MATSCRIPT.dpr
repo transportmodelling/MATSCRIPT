@@ -21,7 +21,9 @@ uses
   Script.Objct.Mtrx in 'Script.Objct.Mtrx.pas',
   Script.Objct.Inp in 'Script.Objct.Inp.pas',
   Script.Objct.Info in 'Script.Objct.Info.pas',
-  Script.Objct.Outp in 'Script.Objct.Outp.pas';
+  Script.Objct.Outp in 'Script.Objct.Outp.pas',
+  Script.Objct.Info.Stats in 'Script.Objct.Info.Stats.pas',
+  Script.Objct.Info.Totals in 'Script.Objct.Info.Totals.pas';
 
 begin
   if ParamCount > 0 then

@@ -362,16 +362,16 @@ end;
 
 Procedure TScriptInterpreter.InterpretTotalsCommand(const [ref] Arguments: TPropertySet);
 Var
-  Rows,Columns: TRanges;
-  Selection: String;
   NTransposedMatrices,NSymmetricMatrices: Integer;
+  TotalsLogger: TMatrixTotalsLogger;
 begin
   // Set matrix selection
   var Ids := TRanges.Create(Arguments['matrices']).Values;
   var TotalsMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
   // Create statistics object
   var FileName := Arguments.ToPath(TMatrixFormat.FileProperty);
-  var TotalsLogger := TMatrixTotalsLogger.Create(FileName,TotalsMatrices);
+  var Delimiter := Arguments.ToStr('delim',Tab.ToString);
+  TotalsLogger := TMatrixTotalsLogger.Create(FileName,TDelimiter.Create(Delimiter),TotalsMatrices);
   LogFile.OutputFile('Line: '+LineCount.ToString,FileName);
   InfoLoggers := InfoLoggers + [TotalsLogger];
 end;

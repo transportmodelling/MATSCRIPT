@@ -12,7 +12,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, Classes, Math, Log, FloatHlp,ArrayHlp, Script.Objct.Row, Script.Objct.Info;
+  SysUtils, Classes, Math, Log, FloatHlp,ArrayHlp, Parse, Script.Objct.Row, Script.Objct.Info;
 
 Type
   TMatrixTotals = record
@@ -22,22 +22,27 @@ Type
   TMatrixTotalsLogger = Class(TCustomMatrixStatistics<TMatrixTotals>)
   private
     FFileName: TFileName;
+    FDelimiter: TDelimiter;
   strict protected
     Procedure Initialize(var Totals: TMatrixTotals); override;
     Procedure Update(MatrixId,Row,Column: Integer; Value: Float64; var Totals: TMatrixTotals); overload; override;
     Procedure LogInfo(Totals: TMatrixTotals); overload; override;
   public
-    Constructor Create(const FileName: TFileName; const Matrices: array of TScriptMatrixRow);
+    Constructor Create(const FileName: TFileName; Delimiter: TDelimiter; const Matrices: array of TScriptMatrixRow);
+  public
+    Property FileName: TFileName read FFileName;
+    Property Delimiter: TDelimiter read FDelimiter;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-Constructor TMatrixTotalsLogger.Create(const FileName: TFileName; const Matrices: array of TScriptMatrixRow);
+Constructor TMatrixTotalsLogger.Create(const FileName: TFileName; Delimiter: TDelimiter; const Matrices: array of TScriptMatrixRow);
 begin
   inherited Create(Matrices);
   FFileName := FileName;
+  FDelimiter := Delimiter;
 end;
 
 Procedure TMatrixTotalsLogger.Initialize(var Totals: TMatrixTotals);
@@ -59,9 +64,9 @@ begin
     for var Index := 0 to Size-1 do
     begin
       Writer.Write(Index+1);
-      Writer.Write(#9);
+      Writer.Write(FDelimiter.Delimiter);
       Writer.Write(FloatToStr(Totals.RowTotals[Index]));
-      Writer.Write(#9);
+      Writer.Write(FDelimiter.Delimiter);
       Writer.Write(FloatToStr(Totals.ColumnTotals[Index]));
       Writer.WriteLine;
     end;

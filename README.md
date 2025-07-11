@@ -237,6 +237,30 @@ The write-command writes matrices to a matrix output file. In addition to the ke
  </tbody>
 </table>
 
+**totals** <br>
+The totals command writes a file containing row and column totals. It takes the following key-value pairs as an argument:
+<table border="1">
+ <col style="width:10%">
+ <col style="width:90%">
+ <thead>
+  <tr>
+    <td><b>Key</b></td>
+    <td><b>Value</b></td>
+   </tr>
+ </thead>
+ <tbody>
+   <tr>
+    <td>matrices</td>
+    <td>Comma separated list of the matrices to include in the row and column totals</td>
+   <tr>
+    <td>file</td>
+    <td>Name of the output file that contains three columns (row/column, row total, column total)</td>
+   <tr>
+    <td>delim</td>
+    <td>Delimiter (comma/tab/semicolon/space) used to separate the columns in the output file (optional, default equals to tab-separated)</td>
+ </tbody>
+</table>
+
 **stats** <br>
 The stats command writes matrix statistics to the console. If a log file is specified in the init command, the matrix statistics are also written to the log file. It takes the following key-value pairs as an argument:
 <table border="1">

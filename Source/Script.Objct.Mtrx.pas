@@ -67,12 +67,12 @@ begin
   if MatrixRow.Transposed then
     for var Column := 0 to Size-1 do
     case Operation of
-      moSum: Matrix.Values[0,Column,Row-1] := Matrix.Values[0,Column,Row-1] + MatrixRow.GetValues(Column);
-      moProduct: Matrix.Values[0,Column,Row-1] := Matrix.Values[0,Column,Row-1]*MatrixRow.GetValues(Column)
+      moSum: Matrix.Values[0,Column,Row] := Matrix.Values[0,Column,Row] + MatrixRow.GetValues(Column);
+      moProduct: Matrix.Values[0,Column,Row] := Matrix.Values[0,Column,Row]*MatrixRow.GetValues(Column)
     end
   else
     for var Column := 0 to Size-1 do
-      Matrix.Values[0,Row-1,Column] := Matrix.Values[0,Row-1,Column] + MatrixRow.GetValues(Column)
+      Matrix.Values[0,Row,Column] := Matrix.Values[0,Row,Column] + MatrixRow.GetValues(Column)
 end;
 
 Destructor TMemMatrix.Destroy;

@@ -44,7 +44,7 @@ begin
   begin
     Stats.Min := Value;
     Stats.MinMatrix := MatrixId;
-    Stats.MinRow := Row;
+    Stats.MinRow := Row+1;
     Stats.MinColumn := Column+1;
   end;
   // Update maximum
@@ -52,7 +52,7 @@ begin
   begin
     Stats.Max := Value;
     Stats.MaxMatrix := MatrixId;
-    Stats.MaxRow := Row;
+    Stats.MaxRow := Row+1;
     Stats.MaxColumn := Column+1;
   end;
   // Update cell counts
@@ -60,7 +60,7 @@ begin
   if Value = 0 then Inc(Stats.EqualToZero) else
   Inc(Stats.GreaterThanZero);
   // Update (diagonal) total
-  if Row = Column+1 then Stats.Diagonal := Stats.Diagonal + Value;
+  if Row = Column then Stats.Diagonal := Stats.Diagonal + Value;
   Stats.Total := Stats.Total + Value;
 end;
 

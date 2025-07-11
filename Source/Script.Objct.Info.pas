@@ -114,7 +114,7 @@ end;
 
 Procedure TCustomMatrixStatistics<StatsType>.Update(Row: Integer);
 begin
-  if RowsSelection.Contains(Row) then
+  if RowsSelection.Contains(Row+1) then
   for var Column := 0 to Size-1 do
   if ColumnsSelection.Contains(Column+1) then
   for var MatrixRow := low(MatrixRows) to high(MatrixRows) do
@@ -167,7 +167,7 @@ end;
 
 Procedure TSumOfAbsoluteDifferences.Update(Row: Integer);
 begin
-  if RowsSelection.Contains(Row) then
+  if RowsSelection.Contains(Row+1) then
   for var Column := 0 to Size-1 do
   if ColumnsSelection.Contains(Column+1) then
   SumOfAbsoluteDifferences := SumOfAbsoluteDifferences +

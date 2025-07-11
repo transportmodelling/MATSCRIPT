@@ -53,7 +53,7 @@ end;
 
 Procedure TMatrixTotalsLogger.Update(MatrixId,Row,Column: Integer; Value: Float64; var Totals: TMatrixTotals);
 begin
-  Totals.RowTotals[Row-1].Add(Value);
+  Totals.RowTotals[Row].Add(Value);
   Totals.ColumnTotals[column].Add(Value);
 end;
 

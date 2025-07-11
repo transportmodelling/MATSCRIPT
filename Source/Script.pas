@@ -556,11 +556,11 @@ begin
               // Update info loggers
               for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do
               if InfoLoggers[InfoLogger].Active[Stage] then
-              InfoLoggers[InfoLogger].Update(Row+1);
+              InfoLoggers[InfoLogger].Update(Row);
               // Update (other) staged objects
               for var StagedObject := low(StagedObjects) to high(StagedObjects) do
               if StagedObjects[StagedObject].Active[Stage] then
-              StagedObjects[StagedObject].Update(Row+1);
+              StagedObjects[StagedObject].Update(Row);
               // Write output files
               for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
               if OutputMatrixFiles[MatrixFl].Stage = Stage then

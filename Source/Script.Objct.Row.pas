@@ -38,12 +38,14 @@ Type
 
   TConstantMatrixRow = Class(TScriptMatrixRow)
   private
-    FValue: Float64;
+    FDiagonalValue,FOffDiagonalValue: Float64;
   public
-    Constructor Create(Id: Integer; Value: Float64);
+    Constructor Create(Id: Integer; Value: Float64); overload;
+    Constructor Create(Id: Integer; DiagonalValue,OffDiagonalValue: Float64); overload;
     Function GetValues(const Column: Integer): Float64; override; final;
   public
-    Property Value: Float64 read FValue;
+    Property DiagonalValue: Float64 read FDiagonalValue;
+    Property OffDiagonalValue: Float64 read FOffDiagonalValue;
   end;
 
   TTransposedMatrixRow = Class(TScriptMatrixRow)
@@ -127,14 +129,23 @@ end;
 
 Constructor TConstantMatrixRow.Create(Id: Integer; Value: Float64);
 begin
+  Create(Id,Value,Value);
+end;
+
+Constructor TConstantMatrixRow.Create(Id: Integer; DiagonalValue,OffDiagonalValue: Float64);
+begin
   inherited Create(Id);
-  FValue := Value;
+  FDiagonalValue := DiagonalValue;
+  FOffDiagonalValue := OffDiagonalValue;
   FSymmetric := true;
 end;
 
 Function TConstantMatrixRow.GetValues(const Column: Integer): Float64;
 begin
-  Result := FValue;
+  if Row = Column then
+    Result := FDiagonalValue
+  else
+    Result := FOffDiagonalValue
 end;
 
 ////////////////////////////////////////////////////////////////////////////////

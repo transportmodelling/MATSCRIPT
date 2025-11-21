@@ -208,13 +208,17 @@ begin
 end;
 
 Procedure TScriptInterpreter.InterpretConstCommand(const [ref] Arguments: TPropertySet);
+Var
+  Matrix: TConstantMatrixRow;
 begin
   // Register matrix
   var Id := Arguments.ToInt('id');
   RegisterMatrix(Id);
   // Create matrix
-  var Value := Arguments.ToFloat('value');
-  var Matrix := TConstantMatrixRow.Create(Id,Value);
+  var Values := Arguments.Parse('value');
+  if Values.Count = 1 then Matrix := TConstantMatrixRow.Create(Id,Values[0]) else
+  if Values.Count = 2 then Matrix := TConstantMatrixRow.Create(Id,Values[0],Values[1]) else
+  raise Exception.Create('Invalid const value');
   Matrix.Tag := Arguments['tag'];
   Matrices := Matrices + [Matrix];
 end;

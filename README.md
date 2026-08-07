@@ -8,7 +8,18 @@ A script interpreter for matrix manipulations, such as:
 * Compare matrices
 
 # Scripting Syntax
-A script file is a ASCII text file containing a series of commands lines that are executed by the MATSCRIPT-program line by line. Each line begins with a command, followed by a sequence of key=value pairs, separated by semicolons. Any lines that begin with the asterisk character (*) are considered comments and are ignored by the MATSCRIPT-program. The scritp file name is passed as an command line argument to the MATSCRIPT-program.
+A script file is an ASCII text file containing a series of commands that are executed by the MATSCRIPT-program. A command starts at the first position of a line (without indentation), and takes its arguments as key: value pairs on the subsequent lines, indented by at least one space or tab:
+
+```
+read
+  file: input\example.omx
+  format: omx
+  id: 1
+```
+
+Alternatively (or additionally), the arguments can be provided on the command line itself, as a sequence of key=value pairs separated by semicolons (`read file=input\example.omx; format=omx; id=1`). When both styles are combined and the same key is provided both ways, the value on the command line takes precedence.
+
+Empty lines and lines that begin with an asterisk (*) or hash (#) character (comments) are ignored by the MATSCRIPT-program; they never end the argument lines of a command. The script file name is passed as a command line argument to the MATSCRIPT-program.
 
 The following commands are supported:
 
@@ -39,6 +50,30 @@ The init-command initializes the script interpreter and should be the first comm
    <tr>
     <td>log</td>
     <td>Log file name (optional, default no logging to file)</td>
+   <tr>
+    <td>delim</td>
+    <td>The character enclosing parameter names (optional, default equals %; see the <a href="#parametrization">Parametrization</a> section). The delimiter takes effect from the next command onwards</td>
+ </tbody>
+</table>
+
+**include** <br>
+The include-command inserts the commands of another script file, as if they were part of the including script file. Included script files may include other script files themselves. In addition to the file-key, any other keys define parameters that apply to the included script file only (see the [Parametrization](#parametrization) section). It takes the following key-value pairs as an argument:
+<table border="1">
+ <col style="width:10%">
+ <col style="width:90%">
+ <thead>
+  <tr>
+    <td><b>Key</b></td>
+    <td><b>Value</b></td>
+   </tr>
+ </thead>
+ <tbody>
+   <tr>
+    <td>file</td>
+    <td>Name of the script file to be included</td>
+   <tr>
+    <td>&lt;name&gt;</td>
+    <td>Value of parameter &lt;name&gt;, applying to the included script file only (optional)</td>
  </tbody>
 </table>
 
@@ -308,6 +343,60 @@ The compare command writes the sum of absolute differences bewteen two matrices 
     <td>Matrix identifiers of the two matrices to be compared, separated by a comma</td>
  </tbody>
 </table>
+
+# Parametrization
+Scripts can be parameterized by passing name=value pairs on the command line, after the script file name:
+
+```
+MATSCRIPT skim.s purp=5
+```
+
+Within the argument values of a command, parameter names enclosed in percent-characters are replaced by the parameter values. With purp equal to 5, the command line above interprets the script command:
+
+```
+read
+  file: skim_%purp%.omx
+  ids: 1
+```
+
+as:
+
+```
+read
+  file: skim_5.omx
+  ids: 1
+```
+
+Parameter names are case insensitive, and all occurrences of a placeholder are replaced. The replacement applies to the argument values only; commands and keys are left untouched. Placeholders of parameters that have not been specified are left unchanged.
+
+When the percent-character conflicts with the script content, another delimiter can be selected with the delim-key of the init-command. As the init-command and its arguments have already been read when the delim-value is interpreted, the new delimiter takes effect from the next command onwards. The delimiter applies up to the next init-command, which restores the default delimiter unless it specifies a delim-value itself.
+
+In addition to the command line, the include-command can specify parameters as well. Any keys other than the file-key define parameters that apply to the included script file (and the files it includes) only. When the same parameter name is specified at several levels, the innermost include takes precedence within the included file. As the replacement is applied to the values of the include-command itself as well (using the parameters valid in the including file), parameter values can be passed on to nested includes.
+
+The example below reads work trips into matrix 1 and other trips into matrix 2, by including the same script file twice with different parameter values:
+
+main.s:
+```
+init
+  size: 100
+
+include
+  file: demand.s
+  purp: work
+  id: 1
+
+include
+  file: demand.s
+  purp: other
+  id: 2
+```
+
+demand.s:
+```
+read
+  file: %purp%_trips.omx
+  ids: %id%
+```
 
 # Dependencies
 MATSCRIPT uses the following libraries, that have been added as submodules:

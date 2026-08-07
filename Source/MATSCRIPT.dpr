@@ -15,7 +15,7 @@ uses
   SysUtils,
   Math,
   KeyVal,
-  Script in 'Script.pas',
+  MatrixScript in 'MatrixScript.pas',
   Script.Objct in 'Script.Objct.pas',
   Script.Objct.Row in 'Script.Objct.Row.pas',
   Script.Objct.Mtrx in 'Script.Objct.Mtrx.pas',
@@ -28,19 +28,38 @@ uses
 begin
   if ParamCount > 0 then
   begin
-    var ScriptInterpreter := TScriptInterpreter.Create;
+    var ScriptInterpreter := TMatrixScriptInterpreter.Create;
     try
       var ScriptFileName := ExpandFileName(ParamStr(1));
       if FileExists(ScriptFileName) then
       begin
-        FormatSettings.DecimalSeparator := '.';
-        TKeyValuePairs.SetBaseDir(ExtractFileDir(ScriptFileName));
-        ScriptInterpreter.Execute(ScriptFileName);
+        // Set script parameters
+        var ValidParameters := true;
+        var ScriptParameters: TKeyValuePairs := nil;
+        for var Parameter := 2 to ParamCount do
+        begin
+          var SeparatorPos := Pos('=',ParamStr(Parameter));
+          if SeparatorPos > 1 then
+            ScriptParameters.Append(Trim(Copy(ParamStr(Parameter),1,SeparatorPos-1)),
+                                    Trim(Copy(ParamStr(Parameter),SeparatorPos+1,MaxInt)))
+          else
+            begin
+              ValidParameters := false;
+              writeln('Invalid script parameter (',ParamStr(Parameter),')');
+            end;
+        end;
+        // Execute script
+        if ValidParameters then
+        begin
+          FormatSettings.DecimalSeparator := '.';
+          TKeyValuePairs.SetBaseDir(ExtractFileDir(ScriptFileName));
+          ScriptInterpreter.Execute(ScriptFileName,ScriptParameters);
+        end;
       end else
         writeln('Script file does not exist')
     finally
       ScriptInterpreter.Free;
     end;
   end else
-    writeln('Usage: ',ExtractFileName(ParamStr(0)),' "<script-file-name>"');
+    writeln('Usage: ',ExtractFileName(ParamStr(0)),' "<script-file-name>" [<name>=<value> ...]');
 end.

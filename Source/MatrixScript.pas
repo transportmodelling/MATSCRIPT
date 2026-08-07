@@ -1,4 +1,4 @@
-unit Script;
+unit MatrixScript;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -12,20 +12,15 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, Classes, Math, Log, Parse, ArrHlp, KeyVal, Ranges, matio, matio.formats, matio.io,
+  SysUtils, Classes, Math, Log, Parse, ArrHlp, KeyVal, Ranges, Script, matio, matio.formats, matio.io,
   matio.writer, matio.writer.text, Script.Objct, Script.Objct.Row, Script.Objct.Mtrx, Script.Objct.Inp, Script.Objct.Outp,
   Script.Objct.Info, Script.Objct.Info.Stats, Script.Objct.Info.Totals;
 
 Type
-  TScriptInterpreter = Class
+  TMatrixScriptInterpreter = Class(TScriptInterpreter)
   private
-    Type
-      TLineHandling = (Handled,Postponed,Unhandled);
     Var
-      ScriptReader: TStreamReader;
-      FileName,Line: String;
-      Initialized: Boolean;
-      LineCount,MaxFileId,NFiles,MaxMatrixId,NMatrices: Integer;
+      MaxFileId,NFiles,MaxMatrixId,NMatrices: Integer;
       FileIndices: array {file id} of Integer;
       InputMatrixFiles: array {file index} of TInputMatrixFile;
       MatrixIndices: array {matrix id} of Integer;
@@ -38,7 +33,6 @@ Type
     Function  GetMemMatrix(const Matrix: TScriptMatrixRow): TScriptMatrixRow;
     Function  GetMatrices(const Ids: array of Integer; out NTransposedMatrices,NSymmetricMatrices: Integer): TArray<TScriptMatrixRow>;
     Procedure CreateInputMatrix(const [ref] Arguments: TKeyValuePairs; const FileIndex: Integer);
-    Procedure InterpretInitCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretReadCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretMatrixCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretConstCommand(const [ref] Arguments: TKeyValuePairs);
@@ -51,17 +45,20 @@ Type
     Procedure InterpretTotalsCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretCompareCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretWriteCommand(const [ref] Arguments: TKeyValuePairs);
-    Function InterpretLine(const Command,Arguments: String): TLineHandling;
-    Function InterpretLines(UnhandledLine: Boolean): Boolean;
-  public
-    Procedure Execute(const ScriptFileName: String);
+  strict protected
+    Procedure InitializeRun; override;
+    Procedure InterpretInitCommand(const [ref] Arguments: TKeyValuePairs); override;
+    Function InterpretCommand(const Command: String; const [ref] Arguments: TKeyValuePairs): Boolean; override;
+    Procedure RunCompleted; override;
+    Procedure FinalizeRun; override;
+    Procedure HandleException(const E: Exception); override;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-Procedure TScriptInterpreter.RegisterMatrix(const Id: Integer);
+Procedure TMatrixScriptInterpreter.RegisterMatrix(const Id: Integer);
 begin
   if Id > 0 then
   begin
@@ -83,7 +80,7 @@ begin
     raise Exception.Create('Invalid matrix id ' + Id.ToString);
 end;
 
-Function TScriptInterpreter.GetMatrix(const Id: Integer): TScriptMatrixRow;
+Function TMatrixScriptInterpreter.GetMatrix(const Id: Integer): TScriptMatrixRow;
 begin
   if (Id > 0) and (Id <= Length(MatrixIndices)) then
   begin
@@ -96,7 +93,7 @@ begin
     raise Exception.Create('Invalid matrix id ' + Id.ToString);
 end;
 
-Function TScriptInterpreter.GetMemMatrix(const Matrix: TScriptMatrixRow): TScriptMatrixRow;
+Function TMatrixScriptInterpreter.GetMemMatrix(const Matrix: TScriptMatrixRow): TScriptMatrixRow;
 begin
   if Matrix.Transposed then
   begin
@@ -117,7 +114,7 @@ begin
     Result := Matrix;
 end;
 
-Function TScriptInterpreter.GetMatrices(const Ids: array of Integer; out NTransposedMatrices,NSymmetricMatrices: Integer): TArray<TScriptMatrixRow>;
+Function TMatrixScriptInterpreter.GetMatrices(const Ids: array of Integer; out NTransposedMatrices,NSymmetricMatrices: Integer): TArray<TScriptMatrixRow>;
 begin
   NTransposedMatrices := 0;
   NSymmetricMatrices := 0;
@@ -130,16 +127,31 @@ begin
   end;
 end;
 
-Procedure TScriptInterpreter.CreateInputMatrix(const [ref] Arguments: TKeyValuePairs; const FileIndex: Integer);
+Procedure TMatrixScriptInterpreter.CreateInputMatrix(const [ref] Arguments: TKeyValuePairs; const FileIndex: Integer);
 begin
   // Create matrix
   var Matrix := InputMatrixFiles[FileIndex].CreateMatrix(Arguments);
   Matrices := Matrices + [Matrix];
 end;
 
-Procedure TScriptInterpreter.InterpretInitCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InitializeRun;
 begin
-  Initialized := true;
+  MaxFileId := 0;
+  NFiles := 0;
+  MaxMatrixId := 0;
+  NMatrices := 0;
+  Finalize(FileIndices);
+  Finalize(InputMatrixFiles);
+  Finalize(MatrixIndices);
+  Finalize(Matrices);
+  Finalize(MemMatrices);
+  Finalize(InfoLoggers);
+  Finalize(StagedObjects);
+  Finalize(OutputMatrixFiles);
+end;
+
+Procedure TMatrixScriptInterpreter.InterpretInitCommand(const [ref] Arguments: TKeyValuePairs);
+begin
   TScriptObject.Size := Arguments.Int('size');
   TMatrixWriter.RoundToZeroThreshold := Arguments.ToFloat('round',0);
   TTextMatrixWriter.RowLabel := Arguments.ToStr('row','Row');
@@ -150,17 +162,17 @@ begin
       LogFile := TLogFile.Create(Arguments.Path('log'),true)
     else
       LogFile := TLogFile.Create;
-    LogFile.InputFile('Script',FileName);
+    LogFile.InputFile('Script',ScriptFileName);
   end else
     raise Exception.Create('Invalid Size-value');
 end;
 
-Procedure TScriptInterpreter.InterpretReadCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InterpretReadCommand(const [ref] Arguments: TKeyValuePairs);
 begin
   // Set file properties
   var FileId := Arguments.ToInt('id',0);
   SetLength(InputMatrixFiles,NFiles+1);
-  InputMatrixFiles[NFiles] := TInputMatrixFile.Create(LineCount,Arguments);
+  InputMatrixFiles[NFiles] := TInputMatrixFile.Create(LineNr,Arguments);
   // Set file index
   if FileId > 0 then
   begin
@@ -190,7 +202,7 @@ begin
   Inc(NFiles);
 end;
 
-Procedure TScriptInterpreter.InterpretMatrixCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InterpretMatrixCommand(const [ref] Arguments: TKeyValuePairs);
 begin
   var FileId := Arguments.Int('file');
   if (FileId > 0) and (FileId <= MaxFileId) then
@@ -207,7 +219,7 @@ begin
     raise Exception.Create('Invalid file id');
 end;
 
-Procedure TScriptInterpreter.InterpretConstCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InterpretConstCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   Matrix: TConstantMatrixRow;
 begin
@@ -223,7 +235,7 @@ begin
   Matrices := Matrices + [Matrix];
 end;
 
-Procedure TScriptInterpreter.InterpretScaleCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InterpretScaleCommand(const [ref] Arguments: TKeyValuePairs);
 begin
   // Register matrix
   var Id := Arguments.Int('id');
@@ -236,7 +248,7 @@ begin
   Matrices := Matrices + [ScaledMatrix];
 end;
 
-Procedure TScriptInterpreter.InterpretRoundCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InterpretRoundCommand(const [ref] Arguments: TKeyValuePairs);
 begin
   // Register matrix
   var Id := Arguments.Int('id');
@@ -249,7 +261,7 @@ begin
   Matrices := Matrices + [RoundedMatrix];
 end;
 
-Procedure TScriptInterpreter.InterpretMergeCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InterpretMergeCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   NTransposedMatrices,NSymmetricMatrices: Integer;
 begin
@@ -288,7 +300,7 @@ begin
   end;
 end;
 
-Procedure TScriptInterpreter.InterpretMultiplyCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InterpretMultiplyCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   NTransposedMatrices,NSymmetricMatrices: Integer;
 begin
@@ -327,7 +339,7 @@ begin
   end;
 end;
 
-Procedure TScriptInterpreter.InterpretTransposeCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InterpretTransposeCommand(const [ref] Arguments: TKeyValuePairs);
 begin
   // Register matrix
   var Id := Arguments.Int('id');
@@ -340,7 +352,7 @@ begin
   Matrices := Matrices + [TransposedMatrix];
 end;
 
-Procedure TScriptInterpreter.InterpretStatisticsCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InterpretStatisticsCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   Rows,Columns: TRanges;
   Selection: String;
@@ -364,7 +376,7 @@ begin
   InfoLoggers := InfoLoggers + [StatisticsLogger];
 end;
 
-Procedure TScriptInterpreter.InterpretTotalsCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InterpretTotalsCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   NTransposedMatrices,NSymmetricMatrices: Integer;
   TotalsLogger: TMatrixTotalsLogger;
@@ -376,11 +388,11 @@ begin
   var FileName := Arguments.Path(TMatrixFormat.FileProperty);
   var Delimiter := Arguments.ToStr('delim',Tab.ToString);
   TotalsLogger := TMatrixTotalsLogger.Create(FileName,TDelimiter.Create(Delimiter),TotalsMatrices);
-  LogFile.OutputFile('Line: '+LineCount.ToString,FileName);
+  LogFile.OutputFile('Line: '+LineNr.ToString,FileName);
   InfoLoggers := InfoLoggers + [TotalsLogger];
 end;
 
-Procedure TScriptInterpreter.InterpretCompareCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InterpretCompareCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   Id0,Id1: Integer;
   Rows,Columns: TRanges;
@@ -423,7 +435,7 @@ begin
   InfoLoggers := InfoLoggers + [SumOfAbsoluteDifferences];
 end;
 
-Procedure TScriptInterpreter.InterpretWriteCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InterpretWriteCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   OutputMatrices: array of TScriptMatrixRow;
 begin
@@ -444,162 +456,96 @@ begin
   var FileLabel := '';
   var OutputMatrixFile := TOutputMatrixFile.Create(Arguments,FileLabel,OutputMatrices);
   OutputMatrixFiles := OutputMatrixFiles + [OutputMatrixFile];
-  LogFile.OutputFile('Line: '+LineCount.ToString,Arguments.Path(TMatrixFormat.FileProperty));
+  LogFile.OutputFile('Line: '+LineNr.ToString,Arguments.Path(TMatrixFormat.FileProperty));
 end;
 
-Function TScriptInterpreter.InterpretLine(const Command,Arguments: String): TLineHandling;
+Function TMatrixScriptInterpreter.InterpretCommand(const Command: String; const [ref] Arguments: TKeyValuePairs): Boolean;
 begin
-  Result := Handled;
-  var Args := TKeyValuePairs.Create(Arguments,'=',';');
-  if SameText(Command,'init') then
-    if Initialized then Result := Postponed else InterpretInitCommand(Args)
-  else
-    if Initialized then
-      if SameText(Command,'read') then InterpretReadCommand(Args) else
-      if SameText(Command,'matrix') then InterpretMatrixCommand(Args) else
-      if SameText(Command,'const') then InterpretConstCommand(Args) else
-      if SameText(Command,'scale') then InterpretScaleCommand(Args) else
-      if SameText(Command,'round') then InterpretRoundCommand(Args) else
-      if SameText(Command,'merge') then InterpretMergeCommand(Args) else
-      if SameText(Command,'multiply') then InterpretMultiplyCommand(Args) else
-      if SameText(Command,'transpose') then InterpretTransposeCommand(Args) else
-      if SameText(Command,'compare') then InterpretCompareCommand(Args) else
-      if SameText(Command,'stats') then InterpretStatisticsCommand(Args) else
-      if SameText(Command,'totals') then InterpretTotalsCommand(Args) else
-      if SameText(Command,'write') then InterpretWriteCommand(Args) else
-      Result := Unhandled
-    else
-      raise Exception.Create('Initialization required');
-end;
-
-Function TScriptInterpreter.InterpretLines(UnhandledLine: Boolean): Boolean;
-// Interpret lines until the end of the script file, or the script is re-initialized.
-// The result indicates whether all lines have been handled.
-// The UnhandledLine-argument indicates whether an unhandled line is left from a previous call.
-begin
-  Initialized := false;
-  while UnhandledLine or (not ScriptReader.EndOfStream) do
-  begin
-    if UnhandledLine then UnhandledLine := false else
-    begin
-      Inc(LineCount);
-      Line := Trim(ScriptReader.ReadLine);
-    end;
-    if (Line <> '') and (Line[1] <> '*') then
-    begin
-      var SpacePos := Pos(' ',Line);
-      var Command := Copy(Line,1,SpacePos-1);
-      var Arguments := Copy(Line,SpacePos+1,MaxInt);
-      try
-        case InterpretLine(Command,Arguments) of
-          Postponed: Exit(false);  // Script is re-initialized
-          Unhandled: raise Exception.Create('Invalid command')
-        end;
-      except
-        on E: Exception do raise Exception.Create(E.Message + ' at line ' + LineCount.ToString);
-      end;
-    end;
-  end;
   Result := true;
+  if SameText(Command,'read') then InterpretReadCommand(Arguments) else
+  if SameText(Command,'matrix') then InterpretMatrixCommand(Arguments) else
+  if SameText(Command,'const') then InterpretConstCommand(Arguments) else
+  if SameText(Command,'scale') then InterpretScaleCommand(Arguments) else
+  if SameText(Command,'round') then InterpretRoundCommand(Arguments) else
+  if SameText(Command,'merge') then InterpretMergeCommand(Arguments) else
+  if SameText(Command,'multiply') then InterpretMultiplyCommand(Arguments) else
+  if SameText(Command,'transpose') then InterpretTransposeCommand(Arguments) else
+  if SameText(Command,'compare') then InterpretCompareCommand(Arguments) else
+  if SameText(Command,'stats') then InterpretStatisticsCommand(Arguments) else
+  if SameText(Command,'totals') then InterpretTotalsCommand(Arguments) else
+  if SameText(Command,'write') then InterpretWriteCommand(Arguments) else
+  Result := false;
 end;
 
-Procedure TScriptInterpreter.Execute(const ScriptFileName: String);
+Procedure TMatrixScriptInterpreter.RunCompleted;
 begin
-  ScriptReader := TStreamReader.Create(ScriptFileName);
-  try
-    var AllLinesHandled := false;
-    var UnhandledLine := false;
-    FileName := ScriptFileName;
-    repeat
-      try
-        try
-          // Initialize
-          MaxFileId := 0;
-          NFiles := 0;
-          MaxMatrixId := 0;
-          NMatrices := 0;
-          Finalize(FileIndices);
-          Finalize(InputMatrixFiles);
-          Finalize(MatrixIndices);
-          Finalize(Matrices);
-          Finalize(MemMatrices);
-          Finalize(InfoLoggers);
-          Finalize(StagedObjects);
-          Finalize(OutputMatrixFiles);
-          // Interpret script
-          AllLinesHandled := InterpretLines(UnhandledLine);
-          UnhandledLine := not AllLinesHandled;
-          // Execute script
-          for var Stage := 0 to TScriptObject.MaxStage do
-          begin
-            // Activate staged objects.
-            // This will activate required input files for this stage.
-            for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do
-            if InfoLoggers[InfoLogger].Stage = Stage then
-            InfoLoggers[InfoLogger].Active[Stage] := true;
-            for var StagedObject := low(StagedObjects) to high(StagedObjects) do
-            if StagedObjects[StagedObject].Stage = Stage then
-            StagedObjects[StagedObject].Active[Stage] := true;
-            for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
-            if OutputMatrixFiles[MatrixFl].Stage = Stage then OutputMatrixFiles[MatrixFl].Active[Stage] := true;
-            // Open input files
-            for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
-            if InputMatrixFiles[MatrixFl].Active[Stage] then InputMatrixFiles[MatrixFl].OpenFile;
-            // Update Tags
-            for var Matrix := low(Matrices) to high(Matrices) do Matrices[Matrix].UpdateTag;
-            // Open output files for this stage.
-            for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
-            if OutputMatrixFiles[MatrixFl].Active[Stage] then OutputMatrixFiles[MatrixFl].OpenFile;
-            // Iterate rows
-            for var Row := 0 to TScriptObject.Size-1 do
-            begin
-              // Read input matrices
-              for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
-              if InputMatrixFiles[MatrixFl].Active[Stage] then InputMatrixFiles[MatrixFl].Read;
-              // Set matrix rows
-              for var Matrix := low(Matrices) to high(Matrices) do Matrices[Matrix].Row := Row;
-              // Update info loggers
-              for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do
-              if InfoLoggers[InfoLogger].Active[Stage] then
-              InfoLoggers[InfoLogger].Update(Row);
-              // Update (other) staged objects
-              for var StagedObject := low(StagedObjects) to high(StagedObjects) do
-              if StagedObjects[StagedObject].Active[Stage] then
-              StagedObjects[StagedObject].Update(Row);
-              // Write output files
-              for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
-              if OutputMatrixFiles[MatrixFl].Stage = Stage then
-              OutputMatrixFiles[MatrixFl].Write;
-            end;
-            // Close input files
-            for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
-            if InputMatrixFiles[MatrixFl].Active[Stage] then InputMatrixFiles[MatrixFl].CloseFile;
-            // Close output files
-            for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
-            if OutputMatrixFiles[MatrixFl].Active[Stage] then OutputMatrixFiles[MatrixFl].CloseFile;
-          end;
-          // Log info
-          for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do InfoLoggers[InfoLogger].LogInfo;
-        except
-          on E: Exception do
-          begin
-            LogFile.Log;
-            LogFile.Log(E);
-          end;
-        end;
-      finally
-        // Destroy objects
-        for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do InputMatrixFiles[MatrixFl].Free;
-        for var Matrix := low(Matrices) to high(Matrices) do Matrices[Matrix].Free;
-        for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do InfoLoggers[InfoLogger].Free;
-        for var StagedObject := low(StagedObjects) to high(StagedObjects) do StagedObjects[StagedObject].Free;
-        for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do OutputMatrixFiles[MatrixFl].Free;
-        FreeAndNil(LogFile);
-      end;
-    until not UnhandledLine;
-  finally
-    ScriptReader.Free;
+  for var Stage := 0 to TScriptObject.MaxStage do
+  begin
+    // Activate staged objects.
+    // This will activate required input files for this stage.
+    for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do
+    if InfoLoggers[InfoLogger].Stage = Stage then
+    InfoLoggers[InfoLogger].Active[Stage] := true;
+    for var StagedObject := low(StagedObjects) to high(StagedObjects) do
+    if StagedObjects[StagedObject].Stage = Stage then
+    StagedObjects[StagedObject].Active[Stage] := true;
+    for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
+    if OutputMatrixFiles[MatrixFl].Stage = Stage then OutputMatrixFiles[MatrixFl].Active[Stage] := true;
+    // Open input files
+    for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
+    if InputMatrixFiles[MatrixFl].Active[Stage] then InputMatrixFiles[MatrixFl].OpenFile;
+    // Update Tags
+    for var Matrix := low(Matrices) to high(Matrices) do Matrices[Matrix].UpdateTag;
+    // Open output files for this stage.
+    for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
+    if OutputMatrixFiles[MatrixFl].Active[Stage] then OutputMatrixFiles[MatrixFl].OpenFile;
+    // Iterate rows
+    for var Row := 0 to TScriptObject.Size-1 do
+    begin
+      // Read input matrices
+      for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
+      if InputMatrixFiles[MatrixFl].Active[Stage] then InputMatrixFiles[MatrixFl].Read;
+      // Set matrix rows
+      for var Matrix := low(Matrices) to high(Matrices) do Matrices[Matrix].Row := Row;
+      // Update info loggers
+      for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do
+      if InfoLoggers[InfoLogger].Active[Stage] then
+      InfoLoggers[InfoLogger].Update(Row);
+      // Update (other) staged objects
+      for var StagedObject := low(StagedObjects) to high(StagedObjects) do
+      if StagedObjects[StagedObject].Active[Stage] then
+      StagedObjects[StagedObject].Update(Row);
+      // Write output files
+      for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
+      if OutputMatrixFiles[MatrixFl].Stage = Stage then
+      OutputMatrixFiles[MatrixFl].Write;
+    end;
+    // Close input files
+    for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
+    if InputMatrixFiles[MatrixFl].Active[Stage] then InputMatrixFiles[MatrixFl].CloseFile;
+    // Close output files
+    for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
+    if OutputMatrixFiles[MatrixFl].Active[Stage] then OutputMatrixFiles[MatrixFl].CloseFile;
   end;
+  // Log info
+  for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do InfoLoggers[InfoLogger].LogInfo;
+end;
+
+Procedure TMatrixScriptInterpreter.FinalizeRun;
+begin
+  // Destroy objects
+  for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do InputMatrixFiles[MatrixFl].Free;
+  for var Matrix := low(Matrices) to high(Matrices) do Matrices[Matrix].Free;
+  for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do InfoLoggers[InfoLogger].Free;
+  for var StagedObject := low(StagedObjects) to high(StagedObjects) do StagedObjects[StagedObject].Free;
+  for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do OutputMatrixFiles[MatrixFl].Free;
+  FreeAndNil(LogFile);
+end;
+
+Procedure TMatrixScriptInterpreter.HandleException(const E: Exception);
+begin
+  LogFile.Log;
+  LogFile.Log(E);
 end;
 
 end.

@@ -18,9 +18,9 @@ Type
   TMatrixOperation = (moSum,moProduct);
 
   TMemMatrix = Class(TStagedObject)
-  // Calculates the sum of matrices. The result is hold in memory because
-  // at least 1 of the Matrices is transposed, so a full cycle over all rows
-  // is required to obtain the result.
+  // Calculates the sum or product of matrices. The result is hold in memory
+  // because at least 1 of the Matrices is transposed, so a full cycle over all
+  // rows is required to obtain the result.
   private
     Rows: TArray<TScriptMatrixRow>;
     Operation: TMatrixOperation;
@@ -54,6 +54,11 @@ begin
   Rows := TArrayBuilder<TScriptMatrixRow>.Create(MatrixRows);
   Operation := MatrixOperation;
   Matrix := TFloat64Matrices.Create(1,Size);
+  // The product accumulation requires an initial value of 1
+  if Operation = moProduct then
+  for var Row := 0 to Size-1 do
+  for var Column := 0 to Size-1 do
+  Matrix.Values[0,Row,Column] := 1.0;
 end;
 
 Function TMemMatrix.Dependencies(Dependency: Integer): TScriptObject;
@@ -72,7 +77,10 @@ begin
     end
   else
     for var Column := 0 to Size-1 do
-      Matrix.Values[0,Row,Column] := Matrix.Values[0,Row,Column] + MatrixRow.GetValues(Column)
+    case Operation of
+      moSum: Matrix.Values[0,Row,Column] := Matrix.Values[0,Row,Column] + MatrixRow.GetValues(Column);
+      moProduct: Matrix.Values[0,Row,Column] := Matrix.Values[0,Row,Column]*MatrixRow.GetValues(Column)
+    end;
 end;
 
 Destructor TMemMatrix.Destroy;

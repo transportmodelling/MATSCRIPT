@@ -1,5 +1,5 @@
-START 07/08/2026 15:38:41
-Executable: MATSCRIPT.exe; 07/08/2026 15:35:56; 2364928 bytes
+START 07/08/2026 16:11:17
+Executable: MATSCRIPT.exe; 07/08/2026 16:09:05; 2365440 bytes
 Computer: PC11-SIG
 
 Matrices: 1
@@ -74,11 +74,11 @@ Columns: 1-10
 Sum of absolute differences: 3425.9
 
 Input files:
-Script: C:\Repos\MATSCRIPT\Examples\statistics\statistics.s; 07/08/2026 15:38:23; 589 bytes
+Script: C:\Repos\MATSCRIPT\Examples\statistics\statistics.s; 07/08/2026 15:49:09; 638 bytes
 Line 7: C:\...\Examples\statistics\input\random1.csv; 08/01/2026 11:43:40; 1098 bytes
 Line 14: C:\...\Examples\statistics\input\random2.dat; 08/01/2026 11:43:40; 1708 bytes
 
 Output files:
-Line: 46: C:\...\Examples\statistics\output\totals.csv; 07/08/2026 15:38:41; 167 bytes
+Line: 46: C:\...\Examples\statistics\output\totals.csv; 07/08/2026 16:11:17; 167 bytes
 
-STOP 07/08/2026 15:38:41 (Run time: 00:00:00)
+STOP 07/08/2026 16:11:17 (Run time: 00:00:00)

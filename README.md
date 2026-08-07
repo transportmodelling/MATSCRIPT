@@ -24,7 +24,7 @@ Empty lines and lines that begin with an asterisk (*) or hash (#) character (com
 The following commands are supported:
 
 **init** <br>
-The init-command initializes the script interpreter and should be the first command in any MATSCRIPT-script. It takes the following key-value pairs as an argument:
+The init-command initializes the script interpreter and should be the first command in any MATSCRIPT-script. A script may contain multiple init-commands: each init-command starts a new run, and a run is executed as soon as the next init-command (or the end of the script file) is reached. It takes the following key-value pairs as an argument:
 <table border="1">
  <col style="width:10%">
  <col style="width:90%">
@@ -91,7 +91,7 @@ The read-command reads matrices from a matrix input file. In addition to the key
  <tbody>
    <tr>
     <td>id</td>
-    <td>File identifier that can be used to reference the input file in subsequent command lines</td>
+    <td>File identifier that can be used to reference the input file in subsequent command lines (optional)</td>
    <tr>
     <td>ids</td>
     <td>Comma separated list of matrix identifiers that can be used to reference matrices (contained in the input file) in subsequent command lines. The index in the list of identifiers coincides with the index of the matrix in the matrix input file. This (optional) key can thus only be used in the case of index based matrix access. In the case of label based matrix access the matrix-command must be used to specify the matrices in a matrix input file</td>
@@ -124,7 +124,7 @@ The matrix-command specifies a matrix that is read from a matrix input file. It 
     <td>Matrix identifier that can be used to reference the matrix in subsequent command lines</td>
    <tr>
     <td>tag</td>
-    <td>Matrix label to be used when writing the matrix to a matrix output file</td>
+    <td>Matrix label to be used when writing the matrix to a matrix output file (optional)</td>
  </tbody>
 </table>
 
@@ -148,7 +148,7 @@ The transpose-command calculates the transposed of a matrix. It takes the follow
     <td>Matrix identifier that can be used to reference the transposed matrix in subsequent command lines</td>
    <tr>
     <td>tag</td>
-    <td>Matrix label to be used when writing the transposed matrix to a matrix output file</td>
+    <td>Matrix label to be used when writing the transposed matrix to a matrix output file (optional)</td>
  </tbody>
 </table>
 
@@ -169,10 +169,10 @@ The const-command defines a matrix with constant values. It takes the following 
     <td>Matrix identifier that can be used to reference the matrix in subsequent command lines</td>
    <tr>
     <td>value</td>
-    <td>The value of the matrix cells</td>
+    <td>The value of the matrix cells. Alternatively, two comma separated values can be provided: the value of the diagonal cells, followed by the value of the off-diagonal cells</td>
    <tr>
     <td>tag</td>
-    <td>Matrix label to be used when writing the matrix to a matrix output file</td>
+    <td>Matrix label to be used when writing the matrix to a matrix output file (optional)</td>
  </tbody>
 </table>
 
@@ -196,10 +196,10 @@ The scale-command multiplies all matrix cells with a fixed factor. It takes the 
     <td>Matrix identifier of the matrix being scaled</td>
    <tr>
     <td>factor</td>
-    <td>The multiplcation factor applied to all matrix cells</td>
+    <td>The multiplication factor applied to all matrix cells</td>
    <tr>
     <td>tag</td>
-    <td>Matrix label to be used when writing the scaled matrix to a matrix output file</td>
+    <td>Matrix label to be used when writing the scaled matrix to a matrix output file (optional)</td>
  </tbody>
 </table>
 
@@ -226,7 +226,7 @@ The round-command rounds all matrix cells. It takes the following key-value pair
     <td>The number of decimals places to round to (optional, default equals 0)</td>
    <tr>
     <td>tag</td>
-    <td>Matrix label to be used when writing the rounded matrix to a matrix output file</td>
+    <td>Matrix label to be used when writing the rounded matrix to a matrix output file (optional)</td>
  </tbody>
 </table>
 
@@ -250,7 +250,31 @@ The merge-command calculates the sum of some matrices. It takes the following ke
     <td>Comma separated list of the matrix identifiers of the matrices that will be merged</td>
    <tr>
     <td>tag</td>
-    <td>Matrix label to be used when writing the merged matrix to a matrix output file</td>
+    <td>Matrix label to be used when writing the merged matrix to a matrix output file (optional)</td>
+ </tbody>
+</table>
+
+**multiply** <br>
+The multiply-command calculates the cell-wise product of some matrices. It takes the following key-value pairs as an argument:
+<table border="1">
+ <col style="width:10%">
+ <col style="width:90%">
+ <thead>
+  <tr>
+    <td><b>Key</b></td>
+    <td><b>Value</b></td>
+   </tr>
+ </thead>
+ <tbody>
+   <tr>
+    <td>id</td>
+    <td>Matrix identifier that can be used to reference the product matrix in subsequent command lines</td>
+   <tr>
+    <td>matrices</td>
+    <td>Comma separated list of the matrix identifiers of the matrices that will be multiplied</td>
+   <tr>
+    <td>tag</td>
+    <td>Matrix label to be used when writing the product matrix to a matrix output file (optional)</td>
  </tbody>
 </table>
 
@@ -321,7 +345,7 @@ The stats command writes matrix statistics to the console. If a log file is spec
 </table>
 
 **compare** <br>
-The compare command writes the sum of absolute differences bewteen two matrices to the console. If a log file is specified in the init command, the sum of absolute differences is also written to the log file. It takes the following key-value pairs as an argument:
+The compare command writes the sum of absolute differences between two matrices to the console. If a log file is specified in the init command, the sum of absolute differences is also written to the log file. It takes the following key-value pairs as an argument:
 <table border="1">
  <col style="width:10%">
  <col style="width:90%">

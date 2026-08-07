@@ -108,6 +108,7 @@ begin
       MemMatrices[Index].Tag := Matrix.Tag;
       StagedObjects := StagedObjects + [MemMatrix];
       Matrices := Matrices + [MemMatrices[Index]];
+      Inc(NMatrices);
     end;
     Result := MemMatrices[Index];
   end else
@@ -140,6 +141,7 @@ begin
   NFiles := 0;
   MaxMatrixId := 0;
   NMatrices := 0;
+  TScriptObject.MaxStage := 0;
   Finalize(FileIndices);
   Finalize(InputMatrixFiles);
   Finalize(MatrixIndices);
@@ -421,14 +423,12 @@ begin
       begin
         var MemMatrix := GetMemMatrix(Matrix0);
         SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,MemMatrix,Matrix1);
-        Inc(NMatrices);
       end
   else
     if Matrix1.Transposed then
       begin
         var MemMatrix := GetMemMatrix(Matrix1);
         SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,Matrix0,MemMatrix);
-        Inc(NMatrices);
       end
     else
       SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,Matrix0,Matrix1);
@@ -449,7 +449,6 @@ begin
     begin
       var MemMatrix := GetMemMatrix(OutputMatrices[Matrix]);
       OutputMatrices[Matrix] := MemMatrix;
-      Inc(NMatrices);
     end;
   end;
   // Create output file
@@ -544,8 +543,13 @@ end;
 
 Procedure TMatrixScriptInterpreter.HandleException(const E: Exception);
 begin
-  LogFile.Log;
-  LogFile.Log(E);
+  // The log file does not exist yet when the init-command has not completed
+  if LogFile <> nil then
+  begin
+    LogFile.Log;
+    LogFile.Log(E);
+  end else
+    writeln('ERROR: ',E.Message);
 end;
 
 end.

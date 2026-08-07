@@ -103,8 +103,6 @@ begin
 end;
 
 Function TInputMatrixFile.CreateMatrix(const [ref] MatrixProperties: TKeyValuePairs): TScriptMatrixRow;
-Var
-  Tag: String;
 begin
   // Get reference type
   var Indexed := MatrixProperties.Contains('index');

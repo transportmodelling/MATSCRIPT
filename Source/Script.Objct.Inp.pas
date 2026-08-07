@@ -12,7 +12,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, PropSet, KeyVal, ArrHlp, Log, matio, matio.io, matio.formats, Script.Objct, Script.Objct.Row;
+  SysUtils, KeyVal, ArrHlp, Log, matio, matio.io, matio.formats, Script.Objct, Script.Objct.Row;
 
 Type
   TFileStatus = (fsUnused,fsIndexed,fsLabeled);
@@ -38,15 +38,15 @@ Type
     Var
       Line: Integer;
       LoggedFileInfo: Boolean;
-      FileProperties: TPropertySet;
+      FileProperties: TKeyValuePairs;
       Selection: TSelection;
       Reader: TMatrixRowsReader;
   public
-    Constructor Create(const LineNr: Integer; const [ref] InputFileProperties: TPropertySet);
+    Constructor Create(const LineNr: Integer; const [ref] InputFileProperties: TKeyValuePairs);
     Procedure OpenFile;
     Procedure Read;
     Procedure CloseFile;
-    Function CreateMatrix(const [ref] MatrixProperties: TPropertySet): TScriptMatrixRow;
+    Function CreateMatrix(const [ref] MatrixProperties: TKeyValuePairs): TScriptMatrixRow;
     Destructor Destroy; override;
   end;
 
@@ -66,7 +66,7 @@ Type
 implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-Constructor TInputMatrixFile.Create(const LineNr: Integer; const [ref] InputFileProperties: TPropertySet);
+Constructor TInputMatrixFile.Create(const LineNr: Integer; const [ref] InputFileProperties: TKeyValuePairs);
 begin
   inherited Create;
   Line := LineNr;
@@ -75,24 +75,21 @@ end;
 
 Procedure TInputMatrixFile.OpenFile;
 begin
-  var Config := TKeyValuePairs.Create(FileProperties.AsString,
-                                      FileProperties.NameValueSeparator,
-                                      FileProperties.PropertiesSeparator);
-  if TMatrixReaderFormat.FileExists(Config) then
+  if TMatrixReaderFormat.FileExists(FileProperties) then
   begin
     // Log file info
     if not LoggedFileInfo then
     begin
       LoggedFileInfo := true;
-      LogFile.InputFile('Line '+Line.ToString,FileProperties.ToPath(TMatrixFormat.FileProperty));
+      LogFile.InputFile('Line '+Line.ToString,FileProperties.Path(TMatrixFormat.FileProperty));
     end;
     // Create reader
     case Selection.Status of
-      fsIndexed: Reader := TMatrixRowsReader.Create(Config,Selection.Indices.Selection,Size);
-      fsLabeled: Reader := TMatrixRowsReader.Create(Config,Selection.Labels.Selection,Size);
+      fsIndexed: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Indices.Selection,Size);
+      fsLabeled: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Labels.Selection,Size);
     end;
   end else
-    raise Exception.Create('File does not exist (' + TMatrixFormat.FileName(Config,false) + ')');
+    raise Exception.Create('File does not exist (' + TMatrixFormat.FileName(FileProperties,false) + ')');
 end;
 
 Procedure TInputMatrixFile.Read;
@@ -105,7 +102,7 @@ begin
   FreeAndNil(Reader);
 end;
 
-Function TInputMatrixFile.CreateMatrix(const [ref] MatrixProperties: TPropertySet): TScriptMatrixRow;
+Function TInputMatrixFile.CreateMatrix(const [ref] MatrixProperties: TKeyValuePairs): TScriptMatrixRow;
 Var
   Tag: String;
 begin
@@ -137,7 +134,7 @@ begin
         if Indexed then raise Exception.Create('Matrix label expected');
   end;
   // Create matrix
-  var Id := MatrixProperties.ToInt('id');
+  var Id := MatrixProperties.Int('id');
   var Matrix := TInputMatrixRow.Create(Id);
   Matrix.Tag := MatrixProperties.ToStr('tag','');
   Matrix.MatrixFile := Self;
@@ -145,13 +142,13 @@ begin
   case Selection.Status of
     fsIndexed:
       begin
-        var Indx := MatrixProperties.ToInt('index')-1;
+        var Indx := MatrixProperties.Int('index')-1;
         Matrix.MatrixIndex := Selection.Indices.Selection.Length;
         Selection.Indices.Selection.Append([Indx]);
       end;
     fsLabeled:
       begin
-        var Lbl := MatrixProperties['label'];
+        var Lbl := MatrixProperties.Str('label');
         Matrix.MatrixIndex := Selection.Labels.Selection.Length;
         Selection.Labels.Selection.Append([Lbl]);
       end;

@@ -14,7 +14,7 @@ program MATSCRIPT;
 uses
   SysUtils,
   Math,
-  Propset,
+  KeyVal,
   Script in 'Script.pas',
   Script.Objct in 'Script.Objct.pas',
   Script.Objct.Row in 'Script.Objct.Row.pas',
@@ -34,7 +34,7 @@ begin
       if FileExists(ScriptFileName) then
       begin
         FormatSettings.DecimalSeparator := '.';
-        TPropertySet.BaseDirectory := ExtractFileDir(ScriptFileName);
+        TKeyValuePairs.SetBaseDir(ExtractFileDir(ScriptFileName));
         ScriptInterpreter.Execute(ScriptFileName);
       end else
         writeln('Script file does not exist')

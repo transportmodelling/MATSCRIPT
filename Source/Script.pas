@@ -12,7 +12,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, Classes, Math, Log, Parse, ArrHlp, PropSet, Ranges, matio, matio.formats, matio.io,
+  SysUtils, Classes, Math, Log, Parse, ArrHlp, KeyVal, Ranges, matio, matio.formats, matio.io,
   matio.writer, matio.writer.text, Script.Objct, Script.Objct.Row, Script.Objct.Mtrx, Script.Objct.Inp, Script.Objct.Outp,
   Script.Objct.Info, Script.Objct.Info.Stats, Script.Objct.Info.Totals;
 
@@ -37,20 +37,20 @@ Type
     Function  GetMatrix(const Id: Integer): TScriptMatrixRow;
     Function  GetMemMatrix(const Matrix: TScriptMatrixRow): TScriptMatrixRow;
     Function  GetMatrices(const Ids: array of Integer; out NTransposedMatrices,NSymmetricMatrices: Integer): TArray<TScriptMatrixRow>;
-    Procedure CreateInputMatrix(const [ref] Arguments: TPropertySet; const FileIndex: Integer);
-    Procedure InterpretInitCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretReadCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretMatrixCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretConstCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretScaleCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretRoundCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretMergeCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretMultiplyCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretTransposeCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretStatisticsCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretTotalsCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretCompareCommand(const [ref] Arguments: TPropertySet);
-    Procedure InterpretWriteCommand(const [ref] Arguments: TPropertySet);
+    Procedure CreateInputMatrix(const [ref] Arguments: TKeyValuePairs; const FileIndex: Integer);
+    Procedure InterpretInitCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure InterpretReadCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure InterpretMatrixCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure InterpretConstCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure InterpretScaleCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure InterpretRoundCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure InterpretMergeCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure InterpretMultiplyCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure InterpretTransposeCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure InterpretStatisticsCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure InterpretTotalsCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure InterpretCompareCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure InterpretWriteCommand(const [ref] Arguments: TKeyValuePairs);
     Function InterpretLine(const Command,Arguments: String): TLineHandling;
     Function InterpretLines(UnhandledLine: Boolean): Boolean;
   public
@@ -130,24 +130,24 @@ begin
   end;
 end;
 
-Procedure TScriptInterpreter.CreateInputMatrix(const [ref] Arguments: TPropertySet; const FileIndex: Integer);
+Procedure TScriptInterpreter.CreateInputMatrix(const [ref] Arguments: TKeyValuePairs; const FileIndex: Integer);
 begin
   // Create matrix
   var Matrix := InputMatrixFiles[FileIndex].CreateMatrix(Arguments);
   Matrices := Matrices + [Matrix];
 end;
 
-Procedure TScriptInterpreter.InterpretInitCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretInitCommand(const [ref] Arguments: TKeyValuePairs);
 begin
   Initialized := true;
-  TScriptObject.Size := Arguments.ToInt('size');
+  TScriptObject.Size := Arguments.Int('size');
   TMatrixWriter.RoundToZeroThreshold := Arguments.ToFloat('round',0);
   TTextMatrixWriter.RowLabel := Arguments.ToStr('row','Row');
   TTextMatrixWriter.ColumnLabel := Arguments.ToStr('column','Column');
   if TScriptObject.Size > 0 then
   begin
     if Arguments.Contains('log') then
-      LogFile := TLogFile.Create(Arguments.ToPath('log'),true)
+      LogFile := TLogFile.Create(Arguments.Path('log'),true)
     else
       LogFile := TLogFile.Create;
     LogFile.InputFile('Script',FileName);
@@ -155,7 +155,7 @@ begin
     raise Exception.Create('Invalid Size-value');
 end;
 
-Procedure TScriptInterpreter.InterpretReadCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretReadCommand(const [ref] Arguments: TKeyValuePairs);
 begin
   // Set file properties
   var FileId := Arguments.ToInt('id',0);
@@ -176,12 +176,12 @@ begin
       raise Exception.Create('File Id ' + FileId.ToString + ' already used');
   end;
   // Create matrices
-  var MatrixIds := TRanges.Create(Arguments['ids']).Values;
+  var MatrixIds := TRanges.Create(Arguments.ToStr('ids','')).Values;
   for var Index := low(MatrixIds) to high(MatrixIds) do
   if MatrixIds[Index] > 0 then
   begin
     RegisterMatrix(MatrixIds[Index]);
-    var MatrixProperties := TPropertySet.Create(false);
+    var MatrixProperties: TKeyValuePairs := nil;
     MatrixProperties.Append('index',(Index+1).ToString);
     MatrixProperties.Append('id',MatrixIds[Index].ToString);
     CreateInputMatrix(MatrixProperties,NFiles);
@@ -190,15 +190,15 @@ begin
   Inc(NFiles);
 end;
 
-Procedure TScriptInterpreter.InterpretMatrixCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretMatrixCommand(const [ref] Arguments: TKeyValuePairs);
 begin
-  var FileId := Arguments.ToInt('file');
+  var FileId := Arguments.Int('file');
   if (FileId > 0) and (FileId <= MaxFileId) then
   begin
     var FileIndex := FileIndices[FileId-1];
     if FileIndex >= 0 then
     begin
-      var Id := Arguments.ToInt('id');
+      var Id := Arguments.Int('id');
       RegisterMatrix(Id);
       CreateInputMatrix(Arguments,FileIndex);
     end else
@@ -207,140 +207,140 @@ begin
     raise Exception.Create('Invalid file id');
 end;
 
-Procedure TScriptInterpreter.InterpretConstCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretConstCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   Matrix: TConstantMatrixRow;
 begin
   // Register matrix
-  var Id := Arguments.ToInt('id');
+  var Id := Arguments.Int('id');
   RegisterMatrix(Id);
   // Create matrix
-  var Values := Arguments.Parse('value');
+  var Values := TStringParser.Create(Comma,Arguments.ToStr('value',''));
   if Values.Count = 1 then Matrix := TConstantMatrixRow.Create(Id,Values[0]) else
   if Values.Count = 2 then Matrix := TConstantMatrixRow.Create(Id,Values[0],Values[1]) else
   raise Exception.Create('Invalid const value');
-  Matrix.Tag := Arguments['tag'];
+  Matrix.Tag := Arguments.ToStr('tag','');
   Matrices := Matrices + [Matrix];
 end;
 
-Procedure TScriptInterpreter.InterpretScaleCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretScaleCommand(const [ref] Arguments: TKeyValuePairs);
 begin
   // Register matrix
-  var Id := Arguments.ToInt('id');
+  var Id := Arguments.Int('id');
   RegisterMatrix(Id);
   // Create matrix
-  var Matrix := GetMatrix(Arguments.ToInt('matrix'));
-  var ScaleFactor := Arguments.ToFloat('factor');
+  var Matrix := GetMatrix(Arguments.Int('matrix'));
+  var ScaleFactor := Arguments.Float('factor');
   var ScaledMatrix := TScaledMatrixRow.Create(Id,ScaleFactor,Matrix);
-  ScaledMatrix.Tag := Arguments['tag'];
+  ScaledMatrix.Tag := Arguments.ToStr('tag','');
   Matrices := Matrices + [ScaledMatrix];
 end;
 
-Procedure TScriptInterpreter.InterpretRoundCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretRoundCommand(const [ref] Arguments: TKeyValuePairs);
 begin
   // Register matrix
-  var Id := Arguments.ToInt('id');
+  var Id := Arguments.Int('id');
   RegisterMatrix(Id);
   // Create matrix
-  var Matrix := GetMatrix(Arguments.ToInt('matrix'));
+  var Matrix := GetMatrix(Arguments.Int('matrix'));
   var NDigits := Arguments.ToInt('digits',0);
   var RoundedMatrix := TRoundedMatrixRow.Create(Id,NDigits,Matrix);
-  RoundedMatrix.Tag := Arguments['tag'];
+  RoundedMatrix.Tag := Arguments.ToStr('tag','');
   Matrices := Matrices + [RoundedMatrix];
 end;
 
-Procedure TScriptInterpreter.InterpretMergeCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretMergeCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   NTransposedMatrices,NSymmetricMatrices: Integer;
 begin
   // Register matrix
-  var Id := Arguments.ToInt('id');
+  var Id := Arguments.Int('id');
   RegisterMatrix(Id);
   // Set matrix selection
-  var Ids := TRanges.Create(Arguments['matrices']).Values;
+  var Ids := TRanges.Create(Arguments.ToStr('matrices','')).Values;
   var NMatrices := Ids.Length;
   var MergeMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
   // Create merged matrix
   if NMatrices = NSymmetricMatrices then
   begin
     var MergedMatrix := TMergedMatrixRow.Create(Id,true,false,MergeMatrices);
-    MergedMatrix.Tag := Arguments['tag'];
+    MergedMatrix.Tag := Arguments.ToStr('tag','');
     Matrices := Matrices + [MergedMatrix];
   end else
   if NTransposedMatrices = 0 then
   begin
     var MergedMatrix := TMergedMatrixRow.Create(Id,false,false,MergeMatrices);
-    MergedMatrix.Tag := Arguments['tag'];
+    MergedMatrix.Tag := Arguments.ToStr('tag','');
     Matrices := Matrices + [MergedMatrix];
   end else
   if NMatrices = NSymmetricMatrices + NTransposedMatrices then
   begin
     var MergedMatrix := TMergedMatrixRow.Create(Id,false,true,MergeMatrices);
-    MergedMatrix.Tag := Arguments['tag'];
+    MergedMatrix.Tag := Arguments.ToStr('tag','');
     Matrices := Matrices + [MergedMatrix];
   end else
   begin
     var MemMatrix := TMemMatrix.Create(MergeMatrices,moSum);
     var MemMatrixReader := TMemMatrixReader.Create(Id,MemMatrix);
-    MemMatrixReader.Tag := Arguments['tag'];
+    MemMatrixReader.Tag := Arguments.ToStr('tag','');
     StagedObjects := StagedObjects + [MemMatrix];
     Matrices := Matrices + [MemMatrixReader];
   end;
 end;
 
-Procedure TScriptInterpreter.InterpretMultiplyCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretMultiplyCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   NTransposedMatrices,NSymmetricMatrices: Integer;
 begin
   // Register matrix
-  var Id := Arguments.ToInt('id');
+  var Id := Arguments.Int('id');
   RegisterMatrix(Id);
   // Set matrix selection
-  var Ids := TRanges.Create(Arguments['matrices']).Values;
+  var Ids := TRanges.Create(Arguments.ToStr('matrices','')).Values;
   var NMatrices := Ids.Length;
   var ProductMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
   // Create merged matrix
   if NMatrices = NSymmetricMatrices then
   begin
     var ProductMatrix := TProductMatrixRow.Create(Id,true,false,ProductMatrices);
-    ProductMatrix.Tag := Arguments['tag'];
+    ProductMatrix.Tag := Arguments.ToStr('tag','');
     Matrices := Matrices + [ProductMatrix];
   end else
   if NTransposedMatrices = 0 then
   begin
     var ProductMatrix := TProductMatrixRow.Create(Id,false,false,ProductMatrices);
-    ProductMatrix.Tag := Arguments['tag'];
+    ProductMatrix.Tag := Arguments.ToStr('tag','');
     Matrices := Matrices + [ProductMatrix];
   end else
   if NMatrices = NSymmetricMatrices + NTransposedMatrices then
   begin
     var ProductMatrix := TProductMatrixRow.Create(Id,false,true,ProductMatrices);
-    ProductMatrix.Tag := Arguments['tag'];
+    ProductMatrix.Tag := Arguments.ToStr('tag','');
     Matrices := Matrices + [ProductMatrix];
   end else
   begin
     var MemMatrix := TMemMatrix.Create(ProductMatrices,moProduct);
     var MemMatrixReader := TMemMatrixReader.Create(Id,MemMatrix);
-    MemMatrixReader.Tag := Arguments['tag'];
+    MemMatrixReader.Tag := Arguments.ToStr('tag','');
     StagedObjects := StagedObjects + [MemMatrix];
     Matrices := Matrices + [MemMatrixReader];
   end;
 end;
 
-Procedure TScriptInterpreter.InterpretTransposeCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretTransposeCommand(const [ref] Arguments: TKeyValuePairs);
 begin
   // Register matrix
-  var Id := Arguments.ToInt('id');
+  var Id := Arguments.Int('id');
   RegisterMatrix(Id);
   // Create transposed matrix
-  var MatrixId := Arguments.ToInt('matrix');
+  var MatrixId := Arguments.Int('matrix');
   var Matrix := GetMatrix(MatrixId);
   var TransposedMatrix := TTransposedMatrixRow.Create(Id,Matrix);
-  TransposedMatrix.Tag := Arguments['tag'];
+  TransposedMatrix.Tag := Arguments.ToStr('tag','');
   Matrices := Matrices + [TransposedMatrix];
 end;
 
-Procedure TScriptInterpreter.InterpretStatisticsCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretStatisticsCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   Rows,Columns: TRanges;
   Selection: String;
@@ -357,37 +357,37 @@ begin
   else
     Columns := TRanges.Create([TRange.Create(1,TScriptObject.Size)]);
   // Set matrix selection
-  var Ids := TRanges.Create(Arguments['matrices']).Values;
+  var Ids := TRanges.Create(Arguments.ToStr('matrices','')).Values;
   var StatisticsMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
   // Create statistics object
   var StatisticsLogger := TMatrixStatisticsLogger.Create(Rows,Columns,StatisticsMatrices);
   InfoLoggers := InfoLoggers + [StatisticsLogger];
 end;
 
-Procedure TScriptInterpreter.InterpretTotalsCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretTotalsCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   NTransposedMatrices,NSymmetricMatrices: Integer;
   TotalsLogger: TMatrixTotalsLogger;
 begin
   // Set matrix selection
-  var Ids := TRanges.Create(Arguments['matrices']).Values;
+  var Ids := TRanges.Create(Arguments.ToStr('matrices','')).Values;
   var TotalsMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
   // Create statistics object
-  var FileName := Arguments.ToPath(TMatrixFormat.FileProperty);
+  var FileName := Arguments.Path(TMatrixFormat.FileProperty);
   var Delimiter := Arguments.ToStr('delim',Tab.ToString);
   TotalsLogger := TMatrixTotalsLogger.Create(FileName,TDelimiter.Create(Delimiter),TotalsMatrices);
   LogFile.OutputFile('Line: '+LineCount.ToString,FileName);
   InfoLoggers := InfoLoggers + [TotalsLogger];
 end;
 
-Procedure TScriptInterpreter.InterpretCompareCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretCompareCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   Id0,Id1: Integer;
   Rows,Columns: TRanges;
   Selection: String;
   SumOfAbsoluteDifferences: TSumOfAbsoluteDifferences;
 begin
-  Arguments.Parse('matrices').AssignToVar([Id0,Id1]);
+  TStringParser.Create(Comma,Arguments.ToStr('matrices','')).AssignToVar([Id0,Id1]);
   // Set Rows selection
   if Arguments.Contains('rows',Selection) then
     Rows := TRanges.Create(Selection)
@@ -423,12 +423,12 @@ begin
   InfoLoggers := InfoLoggers + [SumOfAbsoluteDifferences];
 end;
 
-Procedure TScriptInterpreter.InterpretWriteCommand(const [ref] Arguments: TPropertySet);
+Procedure TScriptInterpreter.InterpretWriteCommand(const [ref] Arguments: TKeyValuePairs);
 Var
   OutputMatrices: array of TScriptMatrixRow;
 begin
   // Get Output matrices
-  var Ids := TRanges.Create(Arguments['matrices']).Values;
+  var Ids := TRanges.Create(Arguments.ToStr('matrices','')).Values;
   SetLength(OutputMatrices,Ids.Length);
   for var Matrix := low(Ids) to high(Ids) do
   begin
@@ -444,28 +444,29 @@ begin
   var FileLabel := '';
   var OutputMatrixFile := TOutputMatrixFile.Create(Arguments,FileLabel,OutputMatrices);
   OutputMatrixFiles := OutputMatrixFiles + [OutputMatrixFile];
-  LogFile.OutputFile('Line: '+LineCount.ToString,Arguments.ToPath(TMatrixFormat.FileProperty));
+  LogFile.OutputFile('Line: '+LineCount.ToString,Arguments.Path(TMatrixFormat.FileProperty));
 end;
 
 Function TScriptInterpreter.InterpretLine(const Command,Arguments: String): TLineHandling;
 begin
   Result := Handled;
+  var Args := TKeyValuePairs.Create(Arguments,'=',';');
   if SameText(Command,'init') then
-    if Initialized then Result := Postponed else InterpretInitCommand(Arguments)
+    if Initialized then Result := Postponed else InterpretInitCommand(Args)
   else
     if Initialized then
-      if SameText(Command,'read') then InterpretReadCommand(Arguments) else
-      if SameText(Command,'matrix') then InterpretMatrixCommand(Arguments) else
-      if SameText(Command,'const') then InterpretConstCommand(Arguments) else
-      if SameText(Command,'scale') then InterpretScaleCommand(Arguments) else
-      if SameText(Command,'round') then InterpretRoundCommand(Arguments) else
-      if SameText(Command,'merge') then InterpretMergeCommand(Arguments) else
-      if SameText(Command,'multiply') then InterpretMultiplyCommand(Arguments) else
-      if SameText(Command,'transpose') then InterpretTransposeCommand(Arguments) else
-      if SameText(Command,'compare') then InterpretCompareCommand(Arguments) else
-      if SameText(Command,'stats') then InterpretStatisticsCommand(Arguments) else
-      if SameText(Command,'totals') then InterpretTotalsCommand(Arguments) else
-      if SameText(Command,'write') then InterpretWriteCommand(Arguments) else
+      if SameText(Command,'read') then InterpretReadCommand(Args) else
+      if SameText(Command,'matrix') then InterpretMatrixCommand(Args) else
+      if SameText(Command,'const') then InterpretConstCommand(Args) else
+      if SameText(Command,'scale') then InterpretScaleCommand(Args) else
+      if SameText(Command,'round') then InterpretRoundCommand(Args) else
+      if SameText(Command,'merge') then InterpretMergeCommand(Args) else
+      if SameText(Command,'multiply') then InterpretMultiplyCommand(Args) else
+      if SameText(Command,'transpose') then InterpretTransposeCommand(Args) else
+      if SameText(Command,'compare') then InterpretCompareCommand(Args) else
+      if SameText(Command,'stats') then InterpretStatisticsCommand(Args) else
+      if SameText(Command,'totals') then InterpretTotalsCommand(Args) else
+      if SameText(Command,'write') then InterpretWriteCommand(Args) else
       Result := Unhandled
     else
       raise Exception.Create('Initialization required');

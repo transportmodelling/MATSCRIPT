@@ -12,12 +12,12 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, PropSet, KeyVal, ArrBld, matio, matio.writer, matio.formats, Script.Objct, Script.Objct.Row;
+  SysUtils, KeyVal, ArrBld, matio, matio.writer, matio.formats, Script.Objct, Script.Objct.Row;
 
 Type
   TOutputMatrixFile = Class(TScriptObject)
   private
-    FileProperties: TPropertySet;
+    FileProperties: TKeyValuePairs;
     FileLabel: String;
     MatrixRows: TArray<TScriptMatrixRow>;
     Delegates: TArray<TVirtualMatrixRow>;
@@ -25,7 +25,7 @@ Type
   strict protected
     Function Dependencies(Dependency: Integer): TScriptObject; override;
   public
-    Constructor Create(const OutputFileProperties: TPropertySet;
+    Constructor Create(const OutputFileProperties: TKeyValuePairs;
                        const OutputFileLabel: String;
                        const OutputMatrices: array of TScriptMatrixRow);
     Procedure OpenFile;
@@ -38,7 +38,7 @@ Type
 implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-Constructor TOutputMatrixFile.Create(const OutputFileProperties: TPropertySet;
+Constructor TOutputMatrixFile.Create(const OutputFileProperties: TKeyValuePairs;
                                      const OutputFileLabel: String;
                                      const OutputMatrices: array of TScriptMatrixRow);
 begin
@@ -66,10 +66,7 @@ begin
     MatrixLabels[Matrix] := MatrixRows[Matrix].Tag;
     if MatrixLabels[Matrix] = '' then MatrixLabels[Matrix] := 'matrix_'+ MatrixRows[Matrix].Id.ToString;
   end;
-  var Config := TKeyValuePairs.Create(FileProperties.AsString,
-                                      FileProperties.NameValueSeparator,
-                                      FileProperties.PropertiesSeparator);
-  Writer := MatrixFormats.CreateWriter(Config,FileLabel,MatrixLabels,Size);
+  Writer := MatrixFormats.CreateWriter(FileProperties,FileLabel,MatrixLabels,Size);
 end;
 
 Procedure TOutputMatrixFile.Write;

@@ -427,4 +427,4 @@ MATSCRIPT uses the following libraries, that have been added as submodules:
 * https://github.com/transportmodelling/Utils
 * https://github.com/transportmodelling/matio
 
-To use [hdf5](https://www.hdfgroup.org/) based matrix formats (such as [omx](https://github.com/osPlanning/omx)), the hdf5.dll must accompany the MATSCRIPT executable.
+To use [hdf5](https://www.hdfgroup.org/) based matrix formats (such as [omx](https://github.com/osPlanning/omx)), the hdf5.dll must accompany the MATSCRIPT executable. The dll is included in the [releases](https://github.com/transportmodelling/MATSCRIPT/releases) published on GitHub.

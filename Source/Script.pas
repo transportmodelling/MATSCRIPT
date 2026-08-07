@@ -12,8 +12,8 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, Classes, Math, Log, Parse, ArrayHlp, PropSet, Ranges, matio, matio.formats, matio.io,
-  matio.text, Script.Objct, Script.Objct.Row, Script.Objct.Mtrx, Script.Objct.Inp, Script.Objct.Outp,
+  SysUtils, Classes, Math, Log, Parse, ArrHlp, PropSet, Ranges, matio, matio.formats, matio.io,
+  matio.writer, matio.writer.text, Script.Objct, Script.Objct.Row, Script.Objct.Mtrx, Script.Objct.Inp, Script.Objct.Outp,
   Script.Objct.Info, Script.Objct.Info.Stats, Script.Objct.Info.Totals;
 
 Type

@@ -12,7 +12,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  mat, matio, ArrayBld, Script.Objct, Script.Objct.Row;
+  matio, matio.matrix, ArrBld, Script.Objct, Script.Objct.Row;
 
 Type
   TMatrixOperation = (moSum,moProduct);

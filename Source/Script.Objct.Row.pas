@@ -12,7 +12,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, ArrayBld, matio, Script.Objct;
+  SysUtils, ArrBld, matio, matio.row, Script.Objct;
 
 Type
   TScriptMatrixRow = Class(TScriptObject)
@@ -20,7 +20,7 @@ Type
   private
     FTag: String;
     FTransposed,FSymmetric: Boolean;
-    FDelegate: TDelegatedMatrixRow;
+    FDelegate: TGetterMatrixRow;
     FId,FRow: Integer;
   public
     Constructor Create(const Id: Integer);
@@ -33,7 +33,7 @@ Type
     Property Row: Integer read FRow write FRow;
     Property Transposed: Boolean read FTransposed;
     Property Symmetric: Boolean read FSymmetric;
-    Property Delegate: TDelegatedMatrixRow read FDelegate;
+    Property Delegate: TGetterMatrixRow read FDelegate;
   end;
 
   TConstantMatrixRow = Class(TScriptMatrixRow)
@@ -108,7 +108,7 @@ Constructor TScriptMatrixRow.Create(const Id: Integer);
 begin
   inherited Create;
   FId := Id;
-  FDelegate := TDelegatedMatrixRow.Create(Size,
+  FDelegate := TGetterMatrixRow.Create(Size,
                 Function(Column: Integer): Float64
                 begin
                   Result := GetValues(Column);

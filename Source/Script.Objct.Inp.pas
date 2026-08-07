@@ -12,7 +12,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, PropSet, ArrayHlp, Log, matio, matio.io, matio.formats, Script.Objct, Script.Objct.Row;
+  SysUtils, PropSet, KeyVal, ArrHlp, Log, matio, matio.io, matio.formats, Script.Objct, Script.Objct.Row;
 
 Type
   TFileStatus = (fsUnused,fsIndexed,fsLabeled);
@@ -75,7 +75,10 @@ end;
 
 Procedure TInputMatrixFile.OpenFile;
 begin
-  if TMatrixReaderFormat.FileExists(FileProperties) then
+  var Config := TKeyValuePairs.Create(FileProperties.AsString,
+                                      FileProperties.NameValueSeparator,
+                                      FileProperties.PropertiesSeparator);
+  if TMatrixReaderFormat.FileExists(Config) then
   begin
     // Log file info
     if not LoggedFileInfo then
@@ -85,11 +88,11 @@ begin
     end;
     // Create reader
     case Selection.Status of
-      fsIndexed: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Indices.Selection,Size);
-      fsLabeled: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Labels.Selection,Size);
+      fsIndexed: Reader := TMatrixRowsReader.Create(Config,Selection.Indices.Selection,Size);
+      fsLabeled: Reader := TMatrixRowsReader.Create(Config,Selection.Labels.Selection,Size);
     end;
   end else
-    raise Exception.Create('File does not exist (' + TMatrixFormat.FileName(FileProperties,false) + ')');
+    raise Exception.Create('File does not exist (' + TMatrixFormat.FileName(Config,false) + ')');
 end;
 
 Procedure TInputMatrixFile.Read;

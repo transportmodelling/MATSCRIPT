@@ -12,7 +12,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, Classes, Math, Log, FloatHlp,ArrayHlp, Parse, Script.Objct.Row, Script.Objct.Info;
+  SysUtils, Classes, Math, Log, FloatHlp,ArrHlp, Parse, Script.Objct.Row, Script.Objct.Info;
 
 Type
   TMatrixTotals = record

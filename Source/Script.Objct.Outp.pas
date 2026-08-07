@@ -12,7 +12,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, PropSet, ArrayBld, matio, matio.formats, Script.Objct, Script.Objct.Row;
+  SysUtils, PropSet, KeyVal, ArrBld, matio, matio.writer, matio.formats, Script.Objct, Script.Objct.Row;
 
 Type
   TOutputMatrixFile = Class(TScriptObject)
@@ -66,7 +66,10 @@ begin
     MatrixLabels[Matrix] := MatrixRows[Matrix].Tag;
     if MatrixLabels[Matrix] = '' then MatrixLabels[Matrix] := 'matrix_'+ MatrixRows[Matrix].Id.ToString;
   end;
-  Writer := MatrixFormats.CreateWriter(FileProperties,FileLabel,MatrixLabels,Size);
+  var Config := TKeyValuePairs.Create(FileProperties.AsString,
+                                      FileProperties.NameValueSeparator,
+                                      FileProperties.PropertiesSeparator);
+  Writer := MatrixFormats.CreateWriter(Config,FileLabel,MatrixLabels,Size);
 end;
 
 Procedure TOutputMatrixFile.Write;

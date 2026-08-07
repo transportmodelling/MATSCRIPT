@@ -12,7 +12,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, Math, Ranges, ArrayBld, Log, Script.Objct, Script.Objct.Row;
+  SysUtils, Math, Ranges, ArrBld, Log, Script.Objct, Script.Objct.Row;
 
 Type
   TInfoLogger = Class(TStagedObject)

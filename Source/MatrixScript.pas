@@ -282,16 +282,20 @@ end;
 
 Procedure TMatrixScriptInterpreter.InterpretRoundCommand(const [ref] Arguments: TKeyValuePairs);
 begin
-  // Get source matrix
+  // Get source matrix and number of decimal places
   var Matrix := GetMatrix(Arguments.Int('matrix'));
-  // Register matrix
-  var Id := Arguments.Int('id');
-  RegisterMatrix(Id);
-  // Create matrix
   var NDigits := Arguments.ToInt('digits',0);
-  var RoundedMatrix := TRoundedMatrixRow.Create(Id,NDigits,Matrix);
-  RoundedMatrix.Tag := Arguments.ToStr('tag','');
-  Matrices := Matrices + [RoundedMatrix];
+  if (NDigits >= 0) and (NDigits <= TRoundedMatrixRow.MaxDigits) then
+  begin
+    // Register matrix
+    var Id := Arguments.Int('id');
+    RegisterMatrix(Id);
+    // Create matrix
+    var RoundedMatrix := TRoundedMatrixRow.Create(Id,NDigits,Matrix);
+    RoundedMatrix.Tag := Arguments.ToStr('tag','');
+    Matrices := Matrices + [RoundedMatrix];
+  end else
+    raise Exception.Create('Invalid digits value (' + NDigits.ToString + ')');
 end;
 
 Procedure TMatrixScriptInterpreter.InterpretMergeCommand(const [ref] Arguments: TKeyValuePairs);

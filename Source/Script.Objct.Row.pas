@@ -70,6 +70,10 @@ Type
   end;
 
   TRoundedMatrixRow = Class(TScriptMatrixRow)
+  public
+    Const
+      // Float64 holds about 15 significant decimal digits
+      MaxDigits = 15;
   private
     Factor: Float64;
     Row: TScriptMatrixRow;

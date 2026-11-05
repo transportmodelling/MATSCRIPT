@@ -78,6 +78,10 @@ Type
     [TestCase('Merge','merge id=2; matrices=1,2','|')]
     [TestCase('Multiply','multiply id=2; matrices=1,2','|')]
     Procedure Command_OwnIdAsSource_LogsInvalidMatrixId(const Command: String);
+    [Test]
+    [TestCase('Negative','-1')]
+    [TestCase('TooLarge','16')]
+    Procedure Round_InvalidDigits_LogsInvalidDigits(const Digits: String);
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -405,6 +409,14 @@ Procedure TInterpreterTests.Command_OwnIdAsSource_LogsInvalidMatrixId(const Comm
 begin
   Execute(['init','  size: 3','  log: run.log'] + ReadCommand + [Command]);
   Assert.IsTrue(LogContains('run.log','Invalid matrix id 2'),TFile.ReadAllText(FilePath('run.log')));
+end;
+
+Procedure TInterpreterTests.Round_InvalidDigits_LogsInvalidDigits(const Digits: String);
+begin
+  Execute(['init','  size: 3','  log: run.log'] + ReadCommand +
+          ['round','  matrix: 1','  digits: ' + Digits,'  id: 2']);
+  Assert.AreEqual(1,ErrorCount);
+  Assert.IsTrue(LogContains('run.log','Invalid digits value (' + Digits + ')'),TFile.ReadAllText(FilePath('run.log')));
 end;
 
 initialization

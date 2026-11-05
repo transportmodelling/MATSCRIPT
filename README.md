@@ -223,7 +223,7 @@ The round-command rounds all matrix cells. It takes the following key-value pair
     <td>Matrix identifier of the matrix to be rounded</td>
    <tr>
     <td>digits</td>
-    <td>The number of decimals places to round to (optional, default equals 0)</td>
+    <td>The number of decimal places to round to, from 0 to 15 (optional, default equals 0)</td>
    <tr>
     <td>tag</td>
     <td>Matrix label to be used when writing the rounded matrix to a matrix output file (optional)</td>

@@ -59,6 +59,8 @@ begin
   for var Row := 0 to Size-1 do
   for var Column := 0 to Size-1 do
   Matrix.Values[0,Row,Column] := 1.0;
+  // Updating starts once all source matrices are available
+  SetStage;
 end;
 
 Function TMemMatrix.Dependencies(Dependency: Integer): TScriptObject;

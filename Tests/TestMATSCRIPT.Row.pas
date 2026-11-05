@@ -47,6 +47,7 @@ Type
     // Memory matrices
     [Test] Procedure MemMatrixReader_UpdatedMatrix_ReadsCells;
     [Test] Procedure MemMatrixReader_StagedMatrix_UsesNextStage;
+    [Test] Procedure MemMatrix_MemMatrixReaderSource_UsesReaderStage;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -184,6 +185,20 @@ begin
   Assert.AreEqual(0,MemMatrix.Stage);
   Assert.AreEqual(1,Reader.Stage);
   Assert.AreEqual(1,TScriptObject.MaxStage);
+end;
+
+Procedure TMatrixRowTests.MemMatrix_MemMatrixReaderSource_UsesReaderStage;
+// A memory matrix that reads another memory matrix can only be updated once
+// the other memory matrix is complete, so in the stage of its reader
+begin
+  var Source := Keep(TConstantMatrixRow.Create(1,1.0));
+  var MemMatrix := Keep(TMemMatrix.Create([Source],moSum));
+  var Reader := Keep(TMemMatrixReader.Create(2,MemMatrix));
+  var NextMemMatrix := Keep(TMemMatrix.Create([Reader],moSum));
+  var NextReader := Keep(TMemMatrixReader.Create(3,NextMemMatrix));
+  Assert.AreEqual(1,NextMemMatrix.Stage);
+  Assert.AreEqual(2,NextReader.Stage);
+  Assert.AreEqual(2,TScriptObject.MaxStage);
 end;
 
 initialization

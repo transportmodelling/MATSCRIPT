@@ -48,6 +48,7 @@ Type
     [Test] Procedure Merge_ConstantAndInput_AddsCells;
     [Test] Procedure Merge_InputAndTransposed_AddsCells;
     [Test] Procedure Multiply_InputAndTransposed_MultipliesCells;
+    [Test] Procedure Transpose_MergedWithTransposed_SwapsRowsAndColumns;
 
     // Info commands
     [Test] Procedure Totals_InputMatrix_WritesRowAndColumnTotals;
@@ -242,6 +243,22 @@ begin
   AssertOutputMatrix('output.csv',Function(Row,Column: Integer): Float64
                                   begin
                                     Result := InputValue(Row,Column)*InputValue(Column,Row);
+                                  end);
+end;
+
+Procedure TInterpreterTests.Transpose_MergedWithTransposed_SwapsRowsAndColumns;
+// Matrix 4 equals A+2*A' and is held in memory. Writing its transposed requires
+// a second memory matrix, which can only be filled once matrix 4 is complete.
+begin
+  Execute(InitCommand + ReadCommand +
+          ['transpose','  matrix: 1','  id: 2'] +
+          ['scale','  matrix: 2','  factor: 2','  id: 3'] +
+          ['merge','  matrices: 1,3','  id: 4'] +
+          ['transpose','  matrix: 4','  id: 5'] +
+          WriteCommand(5,'output.csv'));
+  AssertOutputMatrix('output.csv',Function(Row,Column: Integer): Float64
+                                  begin
+                                    Result := InputValue(Column,Row) + 2*InputValue(Row,Column);
                                   end);
 end;
 

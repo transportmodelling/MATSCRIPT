@@ -49,7 +49,7 @@ The init-command initializes the script interpreter and should be the first comm
     <td>Header for the Column-column used in text output files (optional, default equals "Column")</td>
    <tr>
     <td>log</td>
-    <td>Log file name (optional, default no logging to file)</td>
+    <td>Log file name (optional, default no logging to file). The first run of a script that uses a log file overwrites it; later runs that use the same log file append to it, after a separator line</td>
    <tr>
     <td>delim</td>
     <td>The character enclosing parameter names (optional, default equals %; see the <a href="#parametrization">Parametrization</a> section). The delimiter takes effect from the next command onwards</td>

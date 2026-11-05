@@ -28,11 +28,14 @@ Type
       InfoLoggers: array {logger} of TInfoLogger;
       StagedObjects: array {object} of TStagedObject;
       OutputMatrixFiles: array of TOutputMatrixFile;
+      LogFileNames: array of String; // Log files of the runs so far
     Procedure RegisterMatrix(const Id: Integer);
     Function  GetMatrix(const Id: Integer): TScriptMatrixRow;
     Function  GetMemMatrix(const Matrix: TScriptMatrixRow): TScriptMatrixRow;
     Function  GetMatrices(const Ids: array of Integer; out NTransposedMatrices,NSymmetricMatrices: Integer): TArray<TScriptMatrixRow>;
     Procedure CreateInputMatrix(const [ref] Arguments: TKeyValuePairs; const FileIndex: Integer);
+    Function  LogFileUsed(const FileName: String): Boolean;
+    Function  CreateLogFile(const FileName: String): TLogFile;
     Procedure InterpretReadCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretMatrixCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretConstCommand(const [ref] Arguments: TKeyValuePairs);
@@ -137,6 +140,26 @@ begin
   Matrices := Matrices + [Matrix];
 end;
 
+Function TMatrixScriptInterpreter.LogFileUsed(const FileName: String): Boolean;
+begin
+  for var LogFileName in LogFileNames do
+  if SameFileName(LogFileName,FileName) then Exit(true);
+  Result := false;
+end;
+
+Function TMatrixScriptInterpreter.CreateLogFile(const FileName: String): TLogFile;
+// A log file is overwritten by the first run that uses it. Later runs append
+// to it, so the log file holds all runs, each starting after a separator line.
+begin
+  if LogFileUsed(FileName) then
+    Result := TLogFile.Create(FileName,'-',80,true)
+  else
+    begin
+      Result := TLogFile.Create(FileName,true);
+      LogFileNames := LogFileNames + [FileName];
+    end;
+end;
+
 Procedure TMatrixScriptInterpreter.InitializeRun;
 begin
   MaxFileId := 0;
@@ -163,7 +186,7 @@ begin
   if TScriptObject.Size > 0 then
   begin
     if Arguments.Contains('log') then
-      LogFile := TLogFile.Create(Arguments.Path('log'),true)
+      LogFile := CreateLogFile(Arguments.Path('log'))
     else
       LogFile := TLogFile.Create;
     LogFile.InputFile('Script',ScriptFileName);

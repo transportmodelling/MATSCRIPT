@@ -57,6 +57,8 @@ Type
 
     // Script structure
     [Test] Procedure Init_TwoRuns_ExecutesBothRuns;
+    [Test] Procedure Init_TwoRunsSameLog_LogsBothRuns;
+    [Test] Procedure Init_ExistingLog_IsOverwritten;
     [Test] Procedure Parameter_InFileName_IsReplaced;
 
     // Errors
@@ -316,6 +318,24 @@ begin
                                   begin
                                     Result := 2*InputValue(Row,Column);
                                   end);
+end;
+
+Procedure TInterpreterTests.Init_TwoRunsSameLog_LogsBothRuns;
+// The input matrix totals 198, its double 396
+begin
+  Execute(['init','  size: 3','  log: run.log'] + ReadCommand + ['stats','  matrices: 1'] +
+          ['init','  size: 3','  log: run.log'] + ReadCommand +
+          ['scale','  matrix: 1','  factor: 2','  id: 2'] +
+          ['stats','  matrices: 2']);
+  Assert.IsTrue(LogContains('run.log','Total: 198'),'First run');
+  Assert.IsTrue(LogContains('run.log','Total: 396'),'Second run');
+end;
+
+Procedure TInterpreterTests.Init_ExistingLog_IsOverwritten;
+begin
+  TFile.WriteAllText(FilePath('run.log'),'Previous execution',TEncoding.ASCII);
+  Execute(['init','  size: 3','  log: run.log'] + ReadCommand + ['stats','  matrices: 1']);
+  Assert.IsFalse(LogContains('run.log','Previous execution'));
 end;
 
 Procedure TInterpreterTests.Parameter_InFileName_IsReplaced;

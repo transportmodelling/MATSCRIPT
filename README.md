@@ -313,7 +313,7 @@ The totals command writes a file containing row and column totals. It takes the 
     <td>Comma separated list of the matrices to include in the row and column totals</td>
    <tr>
     <td>file</td>
-    <td>Name of the output file that contains three columns (row/column, row total, column total)</td>
+    <td>Name of the output file that contains three columns (row/column, row total, column total). The number of decimals of a total depends on its absolute value: 5 below 1, 4 below 10, 3 below 100, 2 below 1000, 1 below 10000 and none from 10000 onwards, leaving out trailing zero decimals</td>
    <tr>
     <td>delim</td>
     <td>Delimiter (comma/tab/semicolon/space) used to separate the columns in the output file (optional, default equals to tab-separated)</td>

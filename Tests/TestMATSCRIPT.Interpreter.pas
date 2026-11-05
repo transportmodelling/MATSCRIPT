@@ -54,6 +54,10 @@ Type
     // Info commands
     [Test] Procedure Totals_InputMatrix_WritesRowAndColumnTotals;
     [Test] Procedure Stats_InputMatrix_LogsTotalAndDiagonal;
+    [Test]
+    [TestCase('Rows','rows,63')]
+    [TestCase('Columns','columns,36')]
+    Procedure Stats_TransposedSelection_SelectsTransposedCells(const Key: String; const Total: Integer);
     [Test] Procedure Compare_InputAndTransposed_LogsSumOfAbsoluteDifferences;
 
     // Script structure
@@ -301,6 +305,15 @@ begin
   Execute(['init','  size: 3','  log: run.log'] + ReadCommand + ['stats','  matrices: 1']);
   Assert.IsTrue(LogContains('run.log','Total: 198'),'Total');
   Assert.IsTrue(LogContains('run.log','Diagonal: 66'),'Diagonal');
+end;
+
+Procedure TInterpreterTests.Stats_TransposedSelection_SelectsTransposedCells(const Key: String; const Total: Integer);
+// Row 1 of the transposed matrix holds 11, 21 and 31, column 1 holds 11, 12 and 13
+begin
+  Execute(['init','  size: 3','  log: run.log'] + ReadCommand +
+          ['transpose','  matrix: 1','  id: 2'] +
+          ['stats','  matrices: 2','  ' + Key + ': 1']);
+  Assert.IsTrue(LogContains('run.log','Total: ' + Total.ToString),TFile.ReadAllText(FilePath('run.log')));
 end;
 
 Procedure TInterpreterTests.Compare_InputAndTransposed_LogsSumOfAbsoluteDifferences;

@@ -18,6 +18,8 @@ Type
   TInfoLogger = Class(TStagedObject)
   private
     RowsSelection,ColumnsSelection: TRanges;
+    RowSelected,ColumnSelected: TArray<Boolean>; // Zero based selection masks
+    Function SelectionMask(const Selection: TRanges): TArray<Boolean>;
   protected
     Function FloatToStr(const Float: Float64): string;
   public
@@ -31,6 +33,7 @@ Type
   private
     Stats: StatsType;
     MatrixRows: TArray<TScriptMatrixRow>;
+    Procedure UpdateCell(MatrixId,Row,Column: Integer; Value: Float64);
   strict protected
     Procedure Initialize(var Stats: StatsType); virtual; abstract;
     Procedure Update(MatrixId,Row,Column: Integer; Value: Float64; var Stats: StatsType); overload; virtual; abstract;
@@ -66,6 +69,14 @@ begin
   inherited Create;
   RowsSelection := Rows;
   ColumnsSelection := Columns;
+  RowSelected := SelectionMask(Rows);
+  ColumnSelected := SelectionMask(Columns);
+end;
+
+Function TInfoLogger.SelectionMask(const Selection: TRanges): TArray<Boolean>;
+begin
+  SetLength(Result,Size);
+  for var Index := 0 to Size-1 do Result[Index] := Selection.Contains(Index+1);
 end;
 
 Function TInfoLogger.RowsSelectionString: String;
@@ -107,25 +118,27 @@ begin
   SetStage;
 end;
 
+Procedure TCustomMatrixStatistics<StatsType>.UpdateCell(MatrixId,Row,Column: Integer; Value: Float64);
+// Row and Column locate the cell within its matrix
+begin
+  if RowSelected[Row] and ColumnSelected[Column] then Update(MatrixId,Row,Column,Value,Stats);
+end;
+
 Function TCustomMatrixStatistics<StatsType>.Dependencies(Dependency: Integer): TScriptObject;
 begin
   Result := MatrixRows[Dependency];
 end;
 
 Procedure TCustomMatrixStatistics<StatsType>.Update(Row: Integer);
+// The row of a transposed matrix holds a column of that matrix, so the value
+// at Column belongs to the cell in row Column and column Row.
 begin
-  if RowsSelection.Contains(Row+1) then
   for var Column := 0 to Size-1 do
-  if ColumnsSelection.Contains(Column+1) then
-  for var MatrixRow := low(MatrixRows) to high(MatrixRows) do
-  begin
-    var Id := MatrixRows[MatrixRow].Id;
-    var Value := MatrixRows[MatrixRow].GetValues(Column);
-    if MatrixRows[MatrixRow].Transposed then
-      Update(Id,Column,Row,Value,Stats)
-    else
-      Update(Id,Row,Column,Value,Stats);
-  end;
+  for var MatrixRow in MatrixRows do
+  if MatrixRow.Transposed then
+    UpdateCell(MatrixRow.Id,Column,Row,MatrixRow.GetValues(Column))
+  else
+    UpdateCell(MatrixRow.Id,Row,Column,MatrixRow.GetValues(Column));
 end;
 
 Function TCustomMatrixStatistics<StatsType>.MatrixSelectionCount: Integer;

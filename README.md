@@ -204,7 +204,7 @@ The scale-command multiplies all matrix cells with a fixed factor. It takes the 
 </table>
 
 **round** <br>
-The round-command rounds all matrix cells. It takes the following key-value pairs as an argument:
+The round-command rounds all matrix cells, rounding halves away from zero (0.5 to 1, -2.5 to -3). It takes the following key-value pairs as an argument:
 <table border="1">
  <col style="width:10%">
  <col style="width:90%">

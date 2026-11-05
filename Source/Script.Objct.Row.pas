@@ -216,8 +216,14 @@ begin
 end;
 
 Function TRoundedMatrixRow.GetValues(const Column: Integer): Float64;
+// Halves are rounded away from zero. Int keeps the rounding in Float64, which
+// holds any scaled value, where an Int64 overflows beyond about 9.2E18.
 begin
-  Result := Round(Factor*Row.GetValues(Column))/Factor;
+  var Value: Float64 := Factor*Row.GetValues(Column);
+  if Value < 0 then
+    Result := -Int(0.5-Value)/Factor
+  else
+    Result := Int(Value+0.5)/Factor;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////

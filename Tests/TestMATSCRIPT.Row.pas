@@ -36,6 +36,15 @@ Type
     // Derived matrices
     [Test] Procedure Scaled_Constant_MultipliesCells;
     [Test] Procedure Rounded_Constant_RoundsToDigits;
+    [Test]
+    [TestCase('Half','0.5,0,1')]
+    [TestCase('OddHalf','1.5,0,2')]
+    [TestCase('EvenHalf','2.5,0,3')]
+    [TestCase('NegativeHalf','-0.5,0,-1')]
+    [TestCase('NegativeEvenHalf','-2.5,0,-3')]
+    [TestCase('DecimalHalf','0.25,1,0.3')]
+    [TestCase('Large','1E9,10,1E9')]
+    Procedure Rounded_Value_RoundsHalvesAwayFromZero(const Value: Float64; const Digits: Integer; const Expected: Float64);
     [Test] Procedure Merged_Constants_AddsCells;
     [Test] Procedure Product_Constants_MultipliesCells;
     [Test] Procedure Merged_SymmetricWithNonSymmetric_RaisesException;
@@ -120,6 +129,13 @@ begin
   var Source := Keep(TConstantMatrixRow.Create(1,1.26));
   var Matrix := Keep(TRoundedMatrixRow.Create(2,1,Source));
   Assert.AreEqual(1.3,Matrix.GetValues(0),Tolerance);
+end;
+
+Procedure TMatrixRowTests.Rounded_Value_RoundsHalvesAwayFromZero(const Value: Float64; const Digits: Integer; const Expected: Float64);
+begin
+  var Source := Keep(TConstantMatrixRow.Create(1,Value));
+  var Matrix := Keep(TRoundedMatrixRow.Create(2,Digits,Source));
+  Assert.AreEqual(Expected,Matrix.GetValues(0),Tolerance);
 end;
 
 Procedure TMatrixRowTests.Merged_Constants_AddsCells;

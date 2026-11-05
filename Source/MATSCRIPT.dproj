@@ -99,6 +99,8 @@
         <DCCReference Include="Script.Objct.Inp.pas"/>
         <DCCReference Include="Script.Objct.Info.pas"/>
         <DCCReference Include="Script.Objct.Outp.pas"/>
+        <DCCReference Include="Script.Objct.Info.Stats.pas"/>
+        <DCCReference Include="Script.Objct.Info.Totals.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

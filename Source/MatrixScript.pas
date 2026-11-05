@@ -20,6 +20,7 @@ Type
   TMatrixScriptInterpreter = Class(TScriptInterpreter)
   private
     Var
+      FErrorCount: Integer;
       MaxFileId,NFiles,MaxMatrixId,NMatrices: Integer;
       FileIndices: array {file id} of Integer;
       InputMatrixFiles: array {file index} of TInputMatrixFile;
@@ -55,6 +56,9 @@ Type
     Procedure RunCompleted; override;
     Procedure FinalizeRun; override;
     Procedure HandleException(const E: Exception); override;
+  public
+    // The number of runs that raised an exception
+    Property ErrorCount: Integer read FErrorCount;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -571,6 +575,7 @@ end;
 
 Procedure TMatrixScriptInterpreter.HandleException(const E: Exception);
 begin
+  Inc(FErrorCount);
   // The log file does not exist yet when the init-command has not completed
   if LogFile <> nil then
   begin

@@ -24,6 +24,7 @@ Type
       Tolerance = 1E-6;
     Var
       Directory: String;
+      ErrorCount: Integer; // Error count of the last executed script
     Function FilePath(const FileName: String): String;
     Function InputValue(const Row,Column: Integer): Float64;
     Procedure WriteInputMatrix;
@@ -62,6 +63,9 @@ Type
     [Test] Procedure Parameter_InFileName_IsReplaced;
 
     // Errors
+    [Test] Procedure Execute_ValidScript_CountsNoErrors;
+    [Test] Procedure Execute_InvalidCommand_CountsError;
+    [Test] Procedure Execute_MissingInputFile_CountsError;
     [Test]
     [TestCase('Transpose','transpose id=2; matrix=2','|')]
     [TestCase('Scale','scale id=2; matrix=2; factor=2','|')]
@@ -127,6 +131,7 @@ begin
   var Interpreter := TMatrixScriptInterpreter.Create;
   try
     Interpreter.Execute(ScriptFileName,Parameters);
+    ErrorCount := Interpreter.ErrorCount;
   finally
     Interpreter.Free;
   end;
@@ -343,6 +348,28 @@ begin
   Execute(InitCommand + ReadCommand + WriteCommand(1,'%name%.csv'),
           TKeyValuePairs.Create([TKeyValuePair.Create('name','output')]));
   AssertOutputMatrix('output.csv');
+end;
+
+Procedure TInterpreterTests.Execute_ValidScript_CountsNoErrors;
+begin
+  Execute(InitCommand + ReadCommand + WriteCommand(1,'output.csv'));
+  Assert.AreEqual(0,ErrorCount);
+end;
+
+Procedure TInterpreterTests.Execute_InvalidCommand_CountsError;
+// The error is raised while interpreting the script
+begin
+  Execute(InitCommand + ReadCommand + ['unknown']);
+  Assert.AreEqual(1,ErrorCount);
+end;
+
+Procedure TInterpreterTests.Execute_MissingInputFile_CountsError;
+// The error is raised while executing the run
+begin
+  Execute(InitCommand +
+          ['read','  file: missing.csv','  format: txt','  delim: comma','  header: false','  id: 1','  ids: 1'] +
+          WriteCommand(1,'output.csv'));
+  Assert.AreEqual(1,ErrorCount);
 end;
 
 Procedure TInterpreterTests.Command_OwnIdAsSource_LogsInvalidMatrixId(const Command: String);

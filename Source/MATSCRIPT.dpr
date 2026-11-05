@@ -54,12 +54,20 @@ begin
           FormatSettings.DecimalSeparator := '.';
           TKeyValuePairs.SetBaseDir(ExtractFileDir(ScriptFileName));
           ScriptInterpreter.Execute(ScriptFileName,ScriptParameters);
-        end;
+          if ScriptInterpreter.ErrorCount > 0 then ExitCode := 1;
+        end else
+          ExitCode := 1;
       end else
-        writeln('Script file does not exist')
+        begin
+          writeln('Script file does not exist');
+          ExitCode := 1;
+        end;
     finally
       ScriptInterpreter.Free;
     end;
   end else
-    writeln('Usage: ',ExtractFileName(ParamStr(0)),' "<script-file-name>" [<name>=<value> ...]');
+    begin
+      writeln('Usage: ',ExtractFileName(ParamStr(0)),' "<script-file-name>" [<name>=<value> ...]');
+      ExitCode := 1;
+    end;
 end.

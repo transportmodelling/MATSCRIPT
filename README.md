@@ -19,7 +19,7 @@ read
 
 Alternatively (or additionally), the arguments can be provided on the command line itself, as a sequence of key=value pairs separated by semicolons (`read file=input\example.omx; format=omx; id=1`). When both styles are combined and the same key is provided both ways, the value on the command line takes precedence.
 
-Empty lines and lines that begin with an asterisk (*) or hash (#) character (comments) are ignored by the MATSCRIPT-program; they never end the argument lines of a command. The script file name is passed as a command line argument to the MATSCRIPT-program.
+Empty lines and lines that begin with an asterisk (*) or hash (#) character (comments) are ignored by the MATSCRIPT-program; they never end the argument lines of a command. The script file name is passed as a command line argument to the MATSCRIPT-program. The MATSCRIPT-program ends with exit code 0 when all runs of the script complete, and with exit code 1 when a run fails, when a script parameter is invalid, or when the script file is missing or does not exist.
 
 The following commands are supported:
 

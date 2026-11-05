@@ -59,6 +59,8 @@ implementation
 ////////////////////////////////////////////////////////////////////////////////
 
 Procedure TMatrixScriptInterpreter.RegisterMatrix(const Id: Integer);
+// Commands get their source matrices before registering the matrix they create,
+// so a command cannot take the matrix it creates as a source.
 begin
   if Id > 0 then
   begin
@@ -239,11 +241,12 @@ end;
 
 Procedure TMatrixScriptInterpreter.InterpretScaleCommand(const [ref] Arguments: TKeyValuePairs);
 begin
+  // Get source matrix
+  var Matrix := GetMatrix(Arguments.Int('matrix'));
   // Register matrix
   var Id := Arguments.Int('id');
   RegisterMatrix(Id);
   // Create matrix
-  var Matrix := GetMatrix(Arguments.Int('matrix'));
   var ScaleFactor := Arguments.Float('factor');
   var ScaledMatrix := TScaledMatrixRow.Create(Id,ScaleFactor,Matrix);
   ScaledMatrix.Tag := Arguments.ToStr('tag','');
@@ -252,11 +255,12 @@ end;
 
 Procedure TMatrixScriptInterpreter.InterpretRoundCommand(const [ref] Arguments: TKeyValuePairs);
 begin
+  // Get source matrix
+  var Matrix := GetMatrix(Arguments.Int('matrix'));
   // Register matrix
   var Id := Arguments.Int('id');
   RegisterMatrix(Id);
   // Create matrix
-  var Matrix := GetMatrix(Arguments.Int('matrix'));
   var NDigits := Arguments.ToInt('digits',0);
   var RoundedMatrix := TRoundedMatrixRow.Create(Id,NDigits,Matrix);
   RoundedMatrix.Tag := Arguments.ToStr('tag','');
@@ -267,13 +271,13 @@ Procedure TMatrixScriptInterpreter.InterpretMergeCommand(const [ref] Arguments: 
 Var
   NTransposedMatrices,NSymmetricMatrices: Integer;
 begin
-  // Register matrix
-  var Id := Arguments.Int('id');
-  RegisterMatrix(Id);
   // Set matrix selection
   var Ids := TRanges.Create(Arguments.ToStr('matrices','')).Values;
   var NMatrices := Ids.Length;
   var MergeMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
+  // Register matrix
+  var Id := Arguments.Int('id');
+  RegisterMatrix(Id);
   // Create merged matrix
   if NMatrices = NSymmetricMatrices then
   begin
@@ -306,13 +310,13 @@ Procedure TMatrixScriptInterpreter.InterpretMultiplyCommand(const [ref] Argument
 Var
   NTransposedMatrices,NSymmetricMatrices: Integer;
 begin
-  // Register matrix
-  var Id := Arguments.Int('id');
-  RegisterMatrix(Id);
   // Set matrix selection
   var Ids := TRanges.Create(Arguments.ToStr('matrices','')).Values;
   var NMatrices := Ids.Length;
   var ProductMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
+  // Register matrix
+  var Id := Arguments.Int('id');
+  RegisterMatrix(Id);
   // Create merged matrix
   if NMatrices = NSymmetricMatrices then
   begin
@@ -343,12 +347,13 @@ end;
 
 Procedure TMatrixScriptInterpreter.InterpretTransposeCommand(const [ref] Arguments: TKeyValuePairs);
 begin
+  // Get source matrix
+  var MatrixId := Arguments.Int('matrix');
+  var Matrix := GetMatrix(MatrixId);
   // Register matrix
   var Id := Arguments.Int('id');
   RegisterMatrix(Id);
   // Create transposed matrix
-  var MatrixId := Arguments.Int('matrix');
-  var Matrix := GetMatrix(MatrixId);
   var TransposedMatrix := TTransposedMatrixRow.Create(Id,Matrix);
   TransposedMatrix.Tag := Arguments.ToStr('tag','');
   Matrices := Matrices + [TransposedMatrix];

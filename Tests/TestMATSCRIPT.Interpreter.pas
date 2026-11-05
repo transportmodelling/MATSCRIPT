@@ -58,6 +58,15 @@ Type
     // Script structure
     [Test] Procedure Init_TwoRuns_ExecutesBothRuns;
     [Test] Procedure Parameter_InFileName_IsReplaced;
+
+    // Errors
+    [Test]
+    [TestCase('Transpose','transpose id=2; matrix=2','|')]
+    [TestCase('Scale','scale id=2; matrix=2; factor=2','|')]
+    [TestCase('Round','round id=2; matrix=2','|')]
+    [TestCase('Merge','merge id=2; matrices=1,2','|')]
+    [TestCase('Multiply','multiply id=2; matrices=1,2','|')]
+    Procedure Command_OwnIdAsSource_LogsInvalidMatrixId(const Command: String);
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -314,6 +323,13 @@ begin
   Execute(InitCommand + ReadCommand + WriteCommand(1,'%name%.csv'),
           TKeyValuePairs.Create([TKeyValuePair.Create('name','output')]));
   AssertOutputMatrix('output.csv');
+end;
+
+Procedure TInterpreterTests.Command_OwnIdAsSource_LogsInvalidMatrixId(const Command: String);
+// A matrix cannot be derived from itself, as it does not exist before the command
+begin
+  Execute(['init','  size: 3','  log: run.log'] + ReadCommand + [Command]);
+  Assert.IsTrue(LogContains('run.log','Invalid matrix id 2'),TFile.ReadAllText(FilePath('run.log')));
 end;
 
 initialization

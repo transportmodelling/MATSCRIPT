@@ -49,9 +49,11 @@ Type
   end;
 
   TSumOfAbsoluteDifferences = Class(TInfoLogger)
+  // Both matrices must be transposed, or neither of them
   private
     MatrixRows: array[0..1] of TScriptMatrixRow;
     SumOfAbsoluteDifferences: Float64;
+    Function CellSelected(Row,Column: Integer): Boolean;
   strict protected
     Function Dependencies(Dependency: Integer): TScriptObject; override;
   public
@@ -173,6 +175,16 @@ begin
   SetStage;
 end;
 
+Function TSumOfAbsoluteDifferences.CellSelected(Row,Column: Integer): Boolean;
+// The row of a transposed matrix holds a column of that matrix, so the value
+// at Column belongs to the cell in row Column and column Row.
+begin
+  if MatrixRows[0].Transposed then
+    Result := RowSelected[Column] and ColumnSelected[Row]
+  else
+    Result := RowSelected[Row] and ColumnSelected[Column];
+end;
+
 Function TSumOfAbsoluteDifferences.Dependencies(Dependency: Integer): TScriptObject;
 begin
   Result := MatrixRows[Dependency];
@@ -180,9 +192,8 @@ end;
 
 Procedure TSumOfAbsoluteDifferences.Update(Row: Integer);
 begin
-  if RowsSelection.Contains(Row+1) then
   for var Column := 0 to Size-1 do
-  if ColumnsSelection.Contains(Column+1) then
+  if CellSelected(Row,Column) then
   SumOfAbsoluteDifferences := SumOfAbsoluteDifferences +
     Abs(MatrixRows[0].GetValues(Column)-MatrixRows[1].GetValues(Column));
 end;

@@ -59,6 +59,7 @@ Type
     [TestCase('Columns','columns,36')]
     Procedure Stats_TransposedSelection_SelectsTransposedCells(const Key: String; const Total: Integer);
     [Test] Procedure Compare_InputAndTransposed_LogsSumOfAbsoluteDifferences;
+    [Test] Procedure Compare_TransposedSelection_LogsAndSelectsTransposedCells;
 
     // Script structure
     [Test] Procedure Init_TwoRuns_ExecutesBothRuns;
@@ -323,6 +324,20 @@ begin
           ['transpose','  matrix: 1','  id: 2'] +
           ['compare','  matrices: 1,2']);
   Assert.IsTrue(LogContains('run.log','Sum of absolute differences: 72'));
+end;
+
+Procedure TInterpreterTests.Compare_TransposedSelection_LogsAndSelectsTransposedCells;
+// Matrix 3 doubles transposed matrix 2, so they differ by the cells of matrix 2.
+// Cells (1,2) and (1,3) of matrix 2 hold 21 and 31.
+begin
+  Execute(['init','  size: 3','  log: run.log'] + ReadCommand +
+          ['transpose','  matrix: 1','  id: 2'] +
+          ['scale','  matrix: 2','  factor: 2','  id: 3'] +
+          ['compare','  matrices: 2,3','  rows: 1','  columns: 2-3']);
+  var Log := TFile.ReadAllText(FilePath('run.log'));
+  Assert.IsTrue(Log.Contains('Rows: 1' + sLineBreak),Log);
+  Assert.IsTrue(Log.Contains('Columns: 2,3' + sLineBreak),Log);
+  Assert.IsTrue(Log.Contains('Sum of absolute differences: 52'),Log);
 end;
 
 Procedure TInterpreterTests.Init_TwoRuns_ExecutesBothRuns;

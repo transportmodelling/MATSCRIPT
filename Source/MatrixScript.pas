@@ -447,23 +447,14 @@ begin
   // Set matrix selection
   var Matrix0 := GetMatrix(Id0);
   var Matrix1 := GetMatrix(Id1);
+  // When only one of the matrices is transposed, compare its copy in memory
+  if Matrix0.Transposed <> Matrix1.Transposed then
+  begin
+    Matrix0 := GetMemMatrix(Matrix0);
+    Matrix1 := GetMemMatrix(Matrix1);
+  end;
   // Create info object
-  if Matrix0.Transposed then
-    if Matrix1.Transposed then
-      SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Columns,Rows,Matrix0,Matrix1)
-    else
-      begin
-        var MemMatrix := GetMemMatrix(Matrix0);
-        SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,MemMatrix,Matrix1);
-      end
-  else
-    if Matrix1.Transposed then
-      begin
-        var MemMatrix := GetMemMatrix(Matrix1);
-        SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,Matrix0,MemMatrix);
-      end
-    else
-      SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,Matrix0,Matrix1);
+  SumOfAbsoluteDifferences := TSumOfAbsoluteDifferences.Create(Rows,Columns,Matrix0,Matrix1);
   InfoLoggers := InfoLoggers + [SumOfAbsoluteDifferences];
 end;
 

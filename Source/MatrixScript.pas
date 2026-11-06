@@ -447,8 +447,7 @@ begin
     end;
   end;
   // Create output file
-  var FileLabel := '';
-  var OutputMatrixFile := TOutputMatrixFile.Create(Arguments,FileLabel,OutputMatrices);
+  var OutputMatrixFile := TOutputMatrixFile.Create(Arguments,OutputMatrices);
   OutputMatrixFiles := OutputMatrixFiles + [OutputMatrixFile];
   LogFile.OutputFile('Line: '+LineNr.ToString,Arguments.Path(TMatrixFormat.FileProperty));
 end;

@@ -18,7 +18,6 @@ Type
   TOutputMatrixFile = Class(TScriptObject)
   private
     FileProperties: TKeyValuePairs;
-    FileLabel: String;
     MatrixRows: TArray<TScriptMatrixRow>;
     Delegates: TArray<TVirtualMatrixRow>;
     Writer: TMatrixWriter;
@@ -26,7 +25,6 @@ Type
     Function Dependencies(Dependency: Integer): TScriptObject; override;
   public
     Constructor Create(const OutputFileProperties: TKeyValuePairs;
-                       const OutputFileLabel: String;
                        const OutputMatrices: array of TScriptMatrixRow);
     Procedure OpenFile;
     Procedure Write;
@@ -39,15 +37,14 @@ implementation
 ////////////////////////////////////////////////////////////////////////////////
 
 Constructor TOutputMatrixFile.Create(const OutputFileProperties: TKeyValuePairs;
-                                     const OutputFileLabel: String;
                                      const OutputMatrices: array of TScriptMatrixRow);
 begin
   inherited Create;
   FileProperties := OutputFileProperties;
-  FileLabel := OutputFileLabel;
   FNDependencies := Length(OutputMatrices);
-  SetLength(Delegates,Length(OutputMatrices));
   MatrixRows := TArrayBuilder<TScriptMatrixRow>.Create(OutputMatrices);
+  SetLength(Delegates,Length(OutputMatrices));
+  for var Matrix := low(MatrixRows) to high(MatrixRows) do Delegates[Matrix] := MatrixRows[Matrix].Delegate;
   SetStage;
 end;
 
@@ -66,8 +63,9 @@ begin
     MatrixLabels[Matrix] := MatrixRows[Matrix].Tag;
     if MatrixLabels[Matrix] = '' then MatrixLabels[Matrix] := 'matrix_'+ MatrixRows[Matrix].Id.ToString;
   end;
-  // MatrixFormats creates no writer when the format is unknown or unavailable
-  var MatrixWriter := MatrixFormats.CreateWriter(FileProperties,FileLabel,MatrixLabels,Size);
+  // MatrixFormats creates no writer when the format is unknown or unavailable.
+  // Output files carry no file label.
+  var MatrixWriter := MatrixFormats.CreateWriter(FileProperties,'',MatrixLabels,Size);
   if MatrixWriter <> nil then
     Writer := MatrixWriter
   else
@@ -76,7 +74,6 @@ end;
 
 Procedure TOutputMatrixFile.Write;
 begin
-  for var Mtrx := low(MatrixRows) to high(MatrixRows) do Delegates[Mtrx] := MatrixRows[Mtrx].Delegate;
   Writer.Write(Delegates);
 end;
 

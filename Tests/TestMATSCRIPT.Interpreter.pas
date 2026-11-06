@@ -71,6 +71,8 @@ Type
     [Test] Procedure Execute_ValidScript_CountsNoErrors;
     [Test] Procedure Execute_InvalidCommand_CountsError;
     [Test] Procedure Execute_MissingInputFile_CountsError;
+    [Test] Procedure Execute_ErrorInFirstRun_ExecutesNextRun;
+    [Test] Procedure Execute_ErrorInMiddleRun_SkipsItsRemainingCommands;
     [Test]
     [TestCase('Transpose','transpose id=2; matrix=2','|')]
     [TestCase('Scale','scale id=2; matrix=2; factor=2','|')]
@@ -402,6 +404,26 @@ begin
           ['read','  file: missing.csv','  format: txt','  delim: comma','  header: false','  id: 1','  ids: 1'] +
           WriteCommand(1,'output.csv'));
   Assert.AreEqual(1,ErrorCount);
+end;
+
+Procedure TInterpreterTests.Execute_ErrorInFirstRun_ExecutesNextRun;
+begin
+  Execute(InitCommand + ['unknown'] + ReadCommand + WriteCommand(1,'first.csv') +
+          InitCommand + ReadCommand + WriteCommand(1,'second.csv'));
+  Assert.AreEqual(1,ErrorCount);
+  Assert.IsFalse(TFile.Exists(FilePath('first.csv')),'First run');
+  AssertOutputMatrix('second.csv');
+end;
+
+Procedure TInterpreterTests.Execute_ErrorInMiddleRun_SkipsItsRemainingCommands;
+begin
+  Execute(InitCommand + ReadCommand + WriteCommand(1,'first.csv') +
+          InitCommand + ['unknown'] + ReadCommand + WriteCommand(1,'second.csv') +
+          InitCommand + ReadCommand + WriteCommand(1,'third.csv'));
+  Assert.AreEqual(1,ErrorCount);
+  AssertOutputMatrix('first.csv');
+  Assert.IsFalse(TFile.Exists(FilePath('second.csv')),'Second run');
+  AssertOutputMatrix('third.csv');
 end;
 
 Procedure TInterpreterTests.Command_OwnIdAsSource_LogsInvalidMatrixId(const Command: String);

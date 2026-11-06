@@ -86,6 +86,8 @@ Type
 
   TCustomCombinedMatrixRow = Class(TScriptMatrixRow)
   // Combines the cells of several matrix rows; descendants combine them by an operation
+  private
+    Function OrientationError(const MatrixRow: TScriptMatrixRow): String;
   strict protected
     Rows: TArray<TScriptMatrixRow>;
     Function Dependencies(Dependency: Integer): TScriptObject; override;
@@ -238,12 +240,27 @@ begin
   SetLength(Rows,FNDependencies);
   for var Row := low(MatrixRows) to high(MatrixRows) do
   begin
-    Rows[Row] := MatrixRows[Row];
-    if Symmetric and not Rows[Row].Symmetric then raise Exception.Create('Matrix must be symmetric');
-    if Transposed and not (Rows[Row].Symmetric or Rows[Row].Transposed) then raise Exception.Create('Matrix must be transposed');
-    if not Transposed and Rows[Row].Transposed then raise Exception.Create('Matrix must not be transposed');
+    var Error := OrientationError(MatrixRows[Row]);
+    if Error = '' then
+      Rows[Row] := MatrixRows[Row]
+    else
+      raise Exception.Create(Error);
   end;
   SetStage;
+end;
+
+Function TCustomCombinedMatrixRow.OrientationError(const MatrixRow: TScriptMatrixRow): String;
+// Why the orientation of a matrix row does not fit this combined matrix row;
+// empty when it fits
+begin
+  if FSymmetric and not MatrixRow.Symmetric then
+    Result := 'Matrix must be symmetric'
+  else if FTransposed and not (MatrixRow.Symmetric or MatrixRow.Transposed) then
+    Result := 'Matrix must be transposed'
+  else if not FTransposed and MatrixRow.Transposed then
+    Result := 'Matrix must not be transposed'
+  else
+    Result := '';
 end;
 
 Function TCustomCombinedMatrixRow.Dependencies(Dependency: Integer): TScriptObject;

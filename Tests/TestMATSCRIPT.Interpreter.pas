@@ -11,7 +11,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, IOUtils, DUnitX.TestFramework, KeyVal, Parse, MatrixScript;
+  SysUtils, IOUtils, DUnitX.TestFramework, KeyVal, Parse, matio.hdf5, MatrixScript;
 
 Type
   [TestFixture]
@@ -73,6 +73,9 @@ Type
     [Test] Procedure Execute_MissingInputFile_CountsError;
     [Test] Procedure Execute_ErrorInFirstRun_ExecutesNextRun;
     [Test] Procedure Execute_ErrorInMiddleRun_SkipsItsRemainingCommands;
+    [Test] Procedure Write_UnknownFormat_LogsNoMatrixWriter;
+    [Test] Procedure Write_OmxWithoutDll_LogsDllNotFound;
+    [Test] Procedure Read_OmxWithoutDll_LogsDllNotFound;
     [Test]
     [TestCase('Transpose','transpose id=2; matrix=2','|')]
     [TestCase('Scale','scale id=2; matrix=2; factor=2','|')]
@@ -424,6 +427,44 @@ begin
   AssertOutputMatrix('first.csv');
   Assert.IsFalse(TFile.Exists(FilePath('second.csv')),'Second run');
   AssertOutputMatrix('third.csv');
+end;
+
+Procedure TInterpreterTests.Write_UnknownFormat_LogsNoMatrixWriter;
+begin
+  Execute(['init','  size: 3','  log: run.log'] + ReadCommand +
+          ['write','  matrices: 1','  file: output.csv','  format: txtt']);
+  Assert.AreEqual(1,ErrorCount);
+  Assert.IsTrue(LogContains('run.log','No matrix writer for format txtt'),TFile.ReadAllText(FilePath('run.log')));
+end;
+
+Procedure TInterpreterTests.Write_OmxWithoutDll_LogsDllNotFound;
+// The test executable has no hdf5.dll next to it
+begin
+  if Hdf5Dll = nil then
+  begin
+    Execute(['init','  size: 3','  log: run.log'] + ReadCommand +
+            ['write','  matrices: 1','  file: output.omx','  format: omx']);
+    Assert.AreEqual(1,ErrorCount);
+    Assert.IsTrue(LogContains('run.log','Matrix format omx is not available: hdf5.dll not found'),
+                  TFile.ReadAllText(FilePath('run.log')));
+  end else
+    Assert.Pass('hdf5.dll is loaded');
+end;
+
+Procedure TInterpreterTests.Read_OmxWithoutDll_LogsDllNotFound;
+// The input file must exist; its content is not read
+begin
+  if Hdf5Dll = nil then
+  begin
+    TFile.WriteAllText(FilePath('input.omx'),'',TEncoding.ASCII);
+    Execute(['init','  size: 3','  log: run.log'] +
+            ['read','  file: input.omx','  format: omx','  ids: 1'] +
+            WriteCommand(1,'output.csv'));
+    Assert.AreEqual(1,ErrorCount);
+    Assert.IsTrue(LogContains('run.log','Matrix format omx is not available: hdf5.dll not found'),
+                  TFile.ReadAllText(FilePath('run.log')));
+  end else
+    Assert.Pass('hdf5.dll is loaded');
 end;
 
 Procedure TInterpreterTests.Command_OwnIdAsSource_LogsInvalidMatrixId(const Command: String);

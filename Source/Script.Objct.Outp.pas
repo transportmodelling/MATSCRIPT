@@ -66,7 +66,12 @@ begin
     MatrixLabels[Matrix] := MatrixRows[Matrix].Tag;
     if MatrixLabels[Matrix] = '' then MatrixLabels[Matrix] := 'matrix_'+ MatrixRows[Matrix].Id.ToString;
   end;
-  Writer := MatrixFormats.CreateWriter(FileProperties,FileLabel,MatrixLabels,Size);
+  // MatrixFormats creates no writer when the format is unknown or unavailable
+  var MatrixWriter := MatrixFormats.CreateWriter(FileProperties,FileLabel,MatrixLabels,Size);
+  if MatrixWriter <> nil then
+    Writer := MatrixWriter
+  else
+    raise Exception.Create(MatrixFormats.WriterUnavailability(FileProperties));
 end;
 
 Procedure TOutputMatrixFile.Write;

@@ -32,6 +32,9 @@ Type
       LogFileNames: array of String; // Log files of the runs so far
     Procedure RegisterMatrix(const Id: Integer);
     Function  GetMatrix(const Id: Integer): TScriptMatrixRow;
+    Function  CreateMemMatrixReader(const Id: Integer;
+                                    const MatrixRows: array of TScriptMatrixRow;
+                                    const Operation: TMatrixOperation): TMemMatrixReader;
     Function  GetMemMatrix(const Matrix: TScriptMatrixRow): TScriptMatrixRow;
     Function  GetMatrices(const Ids: array of Integer; out NTransposedMatrices,NSymmetricMatrices: Integer): TArray<TScriptMatrixRow>;
     Procedure CreateInputMatrix(const [ref] Arguments: TKeyValuePairs; const FileIndex: Integer);
@@ -42,8 +45,7 @@ Type
     Procedure InterpretConstCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretScaleCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretRoundCommand(const [ref] Arguments: TKeyValuePairs);
-    Procedure InterpretMergeCommand(const [ref] Arguments: TKeyValuePairs);
-    Procedure InterpretMultiplyCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure InterpretCombineCommand(const [ref] Arguments: TKeyValuePairs; const Operation: TMatrixOperation);
     Procedure InterpretTransposeCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretStatisticsCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretTotalsCommand(const [ref] Arguments: TKeyValuePairs);
@@ -63,6 +65,12 @@ Type
 
 ////////////////////////////////////////////////////////////////////////////////
 implementation
+////////////////////////////////////////////////////////////////////////////////
+
+Const
+  // The matrix row classes that combine matrices by an operation, cell by cell
+  CombinedMatrixRowClasses: array[TMatrixOperation] of TCombinedMatrixRowClass = (TMergedMatrixRow,TProductMatrixRow);
+
 ////////////////////////////////////////////////////////////////////////////////
 
 Procedure TMatrixScriptInterpreter.RegisterMatrix(const Id: Integer);
@@ -102,6 +110,16 @@ begin
     raise Exception.Create('Invalid matrix id ' + Id.ToString);
 end;
 
+Function TMatrixScriptInterpreter.CreateMemMatrixReader(const Id: Integer;
+                                                        const MatrixRows: array of TScriptMatrixRow;
+                                                        const Operation: TMatrixOperation): TMemMatrixReader;
+// Holds the combination of the matrices in memory, for a reader in the next stage
+begin
+  var MemMatrix := TMemMatrix.Create(MatrixRows,Operation);
+  Result := TMemMatrixReader.Create(Id,MemMatrix);
+  StagedObjects := StagedObjects + [MemMatrix];
+end;
+
 Function TMatrixScriptInterpreter.GetMemMatrix(const Matrix: TScriptMatrixRow): TScriptMatrixRow;
 begin
   if Matrix.Transposed then
@@ -112,10 +130,8 @@ begin
     begin
       // Store matrix in memory and create reader.
       // The memory matrix reader gets the same Id, but it is not registered.
-      var MemMatrix := TMemMatrix.Create([Matrix],moSum);
-      MemMatrices[Index] := TMemMatrixReader.Create(Matrix.Id,MemMatrix);
+      MemMatrices[Index] := CreateMemMatrixReader(Matrix.Id,[Matrix],moSum);
       MemMatrices[Index].Tag := Matrix.Tag;
-      StagedObjects := StagedObjects + [MemMatrix];
       Matrices := Matrices + [MemMatrices[Index]];
       Inc(NMatrices);
     end;
@@ -298,82 +314,27 @@ begin
     raise Exception.Create('Invalid digits value (' + NDigits.ToString + ')');
 end;
 
-Procedure TMatrixScriptInterpreter.InterpretMergeCommand(const [ref] Arguments: TKeyValuePairs);
+Procedure TMatrixScriptInterpreter.InterpretCombineCommand(const [ref] Arguments: TKeyValuePairs; const Operation: TMatrixOperation);
+// Combines matrices cell by cell: the merge-command sums them, the multiply-command
+// multiplies them. A combination of transposed and other matrices is held in memory.
 Var
   NTransposedMatrices,NSymmetricMatrices: Integer;
+  Matrix: TScriptMatrixRow;
 begin
   // Set matrix selection
   var Ids := TRanges.Create(Arguments.ToStr('matrices','')).Values;
-  var NMatrices := Ids.Length;
-  var MergeMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
+  var CombinedMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
   // Register matrix
   var Id := Arguments.Int('id');
   RegisterMatrix(Id);
-  // Create merged matrix
-  if NMatrices = NSymmetricMatrices then
-  begin
-    var MergedMatrix := TMergedMatrixRow.Create(Id,true,false,MergeMatrices);
-    MergedMatrix.Tag := Arguments.ToStr('tag','');
-    Matrices := Matrices + [MergedMatrix];
-  end else
-  if NTransposedMatrices = 0 then
-  begin
-    var MergedMatrix := TMergedMatrixRow.Create(Id,false,false,MergeMatrices);
-    MergedMatrix.Tag := Arguments.ToStr('tag','');
-    Matrices := Matrices + [MergedMatrix];
-  end else
-  if NMatrices = NSymmetricMatrices + NTransposedMatrices then
-  begin
-    var MergedMatrix := TMergedMatrixRow.Create(Id,false,true,MergeMatrices);
-    MergedMatrix.Tag := Arguments.ToStr('tag','');
-    Matrices := Matrices + [MergedMatrix];
-  end else
-  begin
-    var MemMatrix := TMemMatrix.Create(MergeMatrices,moSum);
-    var MemMatrixReader := TMemMatrixReader.Create(Id,MemMatrix);
-    MemMatrixReader.Tag := Arguments.ToStr('tag','');
-    StagedObjects := StagedObjects + [MemMatrix];
-    Matrices := Matrices + [MemMatrixReader];
-  end;
-end;
-
-Procedure TMatrixScriptInterpreter.InterpretMultiplyCommand(const [ref] Arguments: TKeyValuePairs);
-Var
-  NTransposedMatrices,NSymmetricMatrices: Integer;
-begin
-  // Set matrix selection
-  var Ids := TRanges.Create(Arguments.ToStr('matrices','')).Values;
-  var NMatrices := Ids.Length;
-  var ProductMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
-  // Register matrix
-  var Id := Arguments.Int('id');
-  RegisterMatrix(Id);
-  // Create merged matrix
-  if NMatrices = NSymmetricMatrices then
-  begin
-    var ProductMatrix := TProductMatrixRow.Create(Id,true,false,ProductMatrices);
-    ProductMatrix.Tag := Arguments.ToStr('tag','');
-    Matrices := Matrices + [ProductMatrix];
-  end else
-  if NTransposedMatrices = 0 then
-  begin
-    var ProductMatrix := TProductMatrixRow.Create(Id,false,false,ProductMatrices);
-    ProductMatrix.Tag := Arguments.ToStr('tag','');
-    Matrices := Matrices + [ProductMatrix];
-  end else
-  if NMatrices = NSymmetricMatrices + NTransposedMatrices then
-  begin
-    var ProductMatrix := TProductMatrixRow.Create(Id,false,true,ProductMatrices);
-    ProductMatrix.Tag := Arguments.ToStr('tag','');
-    Matrices := Matrices + [ProductMatrix];
-  end else
-  begin
-    var MemMatrix := TMemMatrix.Create(ProductMatrices,moProduct);
-    var MemMatrixReader := TMemMatrixReader.Create(Id,MemMatrix);
-    MemMatrixReader.Tag := Arguments.ToStr('tag','');
-    StagedObjects := StagedObjects + [MemMatrix];
-    Matrices := Matrices + [MemMatrixReader];
-  end;
+  // Create combined matrix
+  if (NTransposedMatrices = 0) or (NSymmetricMatrices + NTransposedMatrices = Ids.Length) then
+    Matrix := CombinedMatrixRowClasses[Operation].Create(Id,NSymmetricMatrices = Ids.Length,
+                                                         NTransposedMatrices > 0,CombinedMatrices)
+  else
+    Matrix := CreateMemMatrixReader(Id,CombinedMatrices,Operation);
+  Matrix.Tag := Arguments.ToStr('tag','');
+  Matrices := Matrices + [Matrix];
 end;
 
 Procedure TMatrixScriptInterpreter.InterpretTransposeCommand(const [ref] Arguments: TKeyValuePairs);
@@ -493,8 +454,8 @@ begin
   if SameText(Command,'const') then InterpretConstCommand(Arguments) else
   if SameText(Command,'scale') then InterpretScaleCommand(Arguments) else
   if SameText(Command,'round') then InterpretRoundCommand(Arguments) else
-  if SameText(Command,'merge') then InterpretMergeCommand(Arguments) else
-  if SameText(Command,'multiply') then InterpretMultiplyCommand(Arguments) else
+  if SameText(Command,'merge') then InterpretCombineCommand(Arguments,moSum) else
+  if SameText(Command,'multiply') then InterpretCombineCommand(Arguments,moProduct) else
   if SameText(Command,'transpose') then InterpretTransposeCommand(Arguments) else
   if SameText(Command,'compare') then InterpretCompareCommand(Arguments) else
   if SameText(Command,'stats') then InterpretStatisticsCommand(Arguments) else

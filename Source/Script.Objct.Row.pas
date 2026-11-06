@@ -93,6 +93,8 @@ Type
     Constructor Create(Id: Integer; Symmetric,Transposed: Boolean; const MatrixRows: array of TScriptMatrixRow);
   end;
 
+  TCombinedMatrixRowClass = Class of TCustomCombinedMatrixRow;
+
   TMergedMatrixRow = Class(TCustomCombinedMatrixRow)
   public
     Function GetValues(const Column: Integer): Float64; override; final;

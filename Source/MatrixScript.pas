@@ -390,7 +390,7 @@ begin
   // Set matrix selection
   var Ids := TRanges.Create(Arguments.ToStr('matrices','')).Values;
   var TotalsMatrices := GetMatrices(Ids,NTransposedMatrices,NSymmetricMatrices);
-  // Create statistics object
+  // Create totals object
   var FileName := Arguments.Path(TMatrixFormat.FileProperty);
   var Delimiter := Arguments.ToStr('delim',Tab.ToString);
   TotalsLogger := TMatrixTotalsLogger.Create(FileName,TDelimiter.Create(Delimiter),TotalsMatrices);

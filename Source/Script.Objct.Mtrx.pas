@@ -18,7 +18,7 @@ Type
   TMatrixOperation = (moSum,moProduct);
 
   TMemMatrix = Class(TStagedObject)
-  // Calculates the sum or product of matrices. The result is hold in memory
+  // Calculates the sum or product of matrices. The result is held in memory
   // because at least 1 of the Matrices is transposed, so a full cycle over all
   // rows is required to obtain the result.
   private

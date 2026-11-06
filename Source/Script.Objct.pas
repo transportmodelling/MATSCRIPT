@@ -38,7 +38,7 @@ Type
 
   TStagedObject = Class(TScriptObject)
   // A script object that requires an iteration over all rows to obtain its result.
-  // Script objects that depend on a staged oject can only use it in a subsequent
+  // Script objects that depend on a staged object can only use it in a subsequent
   // iteration (i.e. next stage) over all rows.
   private
     Function DependentsStage: Integer; override;

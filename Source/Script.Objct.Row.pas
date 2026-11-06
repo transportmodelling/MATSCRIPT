@@ -50,7 +50,7 @@ Type
 
   TTransposedMatrixRow = Class(TScriptMatrixRow)
   private
-    Row: TScriptMatrixRow;
+    Source: TScriptMatrixRow;
   strict protected
     Function Dependencies(Dependency: Integer): TScriptObject; override;
   public
@@ -61,7 +61,7 @@ Type
   TScaledMatrixRow = Class(TScriptMatrixRow)
   private
     Factor: Float64;
-    Row: TScriptMatrixRow;
+    Source: TScriptMatrixRow;
   strict protected
     Function Dependencies(Dependency: Integer): TScriptObject; override;
   public
@@ -76,7 +76,7 @@ Type
       MaxDigits = 15;
   private
     Factor: Float64;
-    Row: TScriptMatrixRow;
+    Source: TScriptMatrixRow;
   strict protected
     Function Dependencies(Dependency: Integer): TScriptObject; override;
   public
@@ -161,19 +161,19 @@ Constructor TTransposedMatrixRow.Create(Id: Integer; MatrixRow: TScriptMatrixRow
 begin
   inherited Create(Id);
   FNDependencies := 1;
-  Row := MatrixRow;
-  if Row.FSymmetric then FSymmetric := true else FTransposed := not Row.FTransposed;
+  Source := MatrixRow;
+  if Source.FSymmetric then FSymmetric := true else FTransposed := not Source.FTransposed;
   SetStage;
 end;
 
 Function TTransposedMatrixRow.Dependencies(Dependency: Integer): TScriptObject;
 begin
-  Result := Row;
+  Result := Source;
 end;
 
 Function TTransposedMatrixRow.GetValues(const Column: Integer): Float64;
 begin
-  Result := Row.GetValues(Column);
+  Result := Source.GetValues(Column);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -185,18 +185,18 @@ begin
   FSymmetric := MatrixRow.FSymmetric;
   FTransposed := MatrixRow.FTransposed;
   Factor := ScaleFactor;
-  Row := MatrixRow;
+  Source := MatrixRow;
   SetStage;
 end;
 
 Function TScaledMatrixRow.Dependencies(Dependency: Integer): TScriptObject;
 begin
-  Result := Row;
+  Result := Source;
 end;
 
 Function TScaledMatrixRow.GetValues(const Column: Integer): Float64;
 begin
-  Result := Factor*Row.GetValues(Column);
+  Result := Factor*Source.GetValues(Column);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -209,20 +209,20 @@ begin
   FTransposed := MatrixRow.FTransposed;
   Factor := 1.0;
   for var Digit := 1 to NDigits do Factor := 10*Factor;
-  Row := MatrixRow;
+  Source := MatrixRow;
   SetStage;
 end;
 
 Function TRoundedMatrixRow.Dependencies(Dependency: Integer): TScriptObject;
 begin
-  Result := Row;
+  Result := Source;
 end;
 
 Function TRoundedMatrixRow.GetValues(const Column: Integer): Float64;
 // Halves are rounded away from zero. Int keeps the rounding in Float64, which
 // holds any scaled value, where an Int64 overflows beyond about 9.2E18.
 begin
-  var Value: Float64 := Factor*Row.GetValues(Column);
+  var Value: Float64 := Factor*Source.GetValues(Column);
   if Value < 0 then
     Result := -Int(0.5-Value)/Factor
   else
@@ -238,11 +238,11 @@ begin
   if Symmetric then FSymmetric := true else FTransposed := Transposed;
   // Set Rows and check Symmetric and Transposed-flags
   SetLength(Rows,FNDependencies);
-  for var Row := low(MatrixRows) to high(MatrixRows) do
+  for var Index := low(MatrixRows) to high(MatrixRows) do
   begin
-    var Error := OrientationError(MatrixRows[Row]);
+    var Error := OrientationError(MatrixRows[Index]);
     if Error = '' then
-      Rows[Row] := MatrixRows[Row]
+      Rows[Index] := MatrixRows[Index]
     else
       raise Exception.Create(Error);
   end;
@@ -273,7 +273,7 @@ end;
 Function TMergedMatrixRow.GetValues(const Column: Integer): Float64;
 begin
   Result := 0.0;
-  for var Row := low(Rows) to high(Rows) do Result := Result + Rows[Row].GetValues(Column);
+  for var Index := low(Rows) to high(Rows) do Result := Result + Rows[Index].GetValues(Column);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -281,7 +281,7 @@ end;
 Function TProductMatrixRow.GetValues(const Column: Integer): Float64;
 begin
   Result := 1.0;
-  for var Row := low(Rows) to high(Rows) do Result := Result*Rows[Row].GetValues(Column);
+  for var Index := low(Rows) to high(Rows) do Result := Result*Rows[Index].GetValues(Column);
 end;
 
 end.

@@ -27,9 +27,9 @@ Type
     Matrix: TFloat64Matrices;
   strict protected
     Function Dependencies(Dependency: Integer): TScriptObject; override;
-    Procedure Update(Row: Integer); override;
   public
     Constructor Create(const MatrixRows: array of TScriptMatrixRow; MatrixOperation: TMatrixOperation);
+    Procedure Update(Row: Integer); override;
     Destructor Destroy; override;
   end;
 

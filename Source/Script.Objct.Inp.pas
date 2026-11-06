@@ -46,10 +46,10 @@ Type
     MatrixIndex: Integer;
   strict protected
     Function Dependencies(Dependency: Integer): TScriptObject; override;
-    Function GetValues(const Column: Integer): Float64; override;
   public
     Constructor Create(Id: Integer);
     Procedure UpdateTag; override;
+    Function GetValues(const Column: Integer): Float64; override;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -12,35 +12,25 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils, KeyVal, ArrHlp, Log, matio, matio.io, matio.formats, Script.Objct, Script.Objct.Row;
+  SysUtils, KeyVal, Log, matio, matio.io, matio.formats, Script.Objct, Script.Objct.Row;
 
 Type
   TFileStatus = (fsUnused,fsIndexed,fsLabeled);
 
-  TMatrixIndexSelection = Class
-  private
-    Selection: TArray<Integer>;
-  end;
-
-  TMatrixLabelSelection = Class
-  private
-    Selection: TArray<String>;
-  end;
-
   TInputMatrixFile = Class(TScriptObject)
+  // All matrices of a file are selected by their index in the file, or all of
+  // them by their label
   private
-    Type
-      TSelection = record
-        case Status: TFileStatus of
-          fsIndexed: (Indices: TMatrixIndexSelection);
-          fsLabeled: (Labels: TMatrixLabelSelection);
-      end;
-    Var
-      Line: Integer;
-      LoggedFileInfo: Boolean;
-      FileProperties: TKeyValuePairs;
-      Selection: TSelection;
-      Reader: TMatrixRowsReader;
+    Line: Integer;
+    LoggedFileInfo: Boolean;
+    FileProperties: TKeyValuePairs;
+    Status: TFileStatus;
+    Indices: TArray<Integer>; // Zero based indices of the selected matrices, when selected by index
+    Labels: TArray<String>; // Labels of the selected matrices, when selected by label
+    Reader: TMatrixRowsReader;
+    Function ReferenceStatus(const [ref] MatrixProperties: TKeyValuePairs): TFileStatus;
+    Procedure SetStatus(const MatrixStatus: TFileStatus);
+    Function SelectMatrix(const [ref] MatrixProperties: TKeyValuePairs): Integer;
   public
     Constructor Create(const LineNr: Integer; const [ref] InputFileProperties: TKeyValuePairs);
     Procedure OpenFile;
@@ -73,6 +63,44 @@ begin
   FileProperties := InputFileProperties;
 end;
 
+Function TInputMatrixFile.ReferenceStatus(const [ref] MatrixProperties: TKeyValuePairs): TFileStatus;
+// A matrix is referenced by its index or by its label
+begin
+  var Indexed := MatrixProperties.Contains('index');
+  var Labeled := MatrixProperties.Contains('label');
+  if Indexed <> Labeled then
+    if Indexed then Result := fsIndexed else Result := fsLabeled
+  else if Indexed then
+    raise Exception.Create('Ambiguous matrix reference')
+  else
+    raise Exception.Create('Missing matrix reference');
+end;
+
+Procedure TInputMatrixFile.SetStatus(const MatrixStatus: TFileStatus);
+// The first matrix sets how the matrices of the file are referenced
+begin
+  if (Status = fsUnused) or (Status = MatrixStatus) then
+    Status := MatrixStatus
+  else if Status = fsIndexed then
+    raise Exception.Create('Matrix index expected')
+  else
+    raise Exception.Create('Matrix label expected');
+end;
+
+Function TInputMatrixFile.SelectMatrix(const [ref] MatrixProperties: TKeyValuePairs): Integer;
+// Adds a matrix to the selection; the result is its index within the selection
+begin
+  if Status = fsIndexed then
+  begin
+    Result := Length(Indices);
+    Indices := Indices + [MatrixProperties.Int('index')-1];
+  end else
+  begin
+    Result := Length(Labels);
+    Labels := Labels + [MatrixProperties.Str('label')];
+  end;
+end;
+
 Procedure TInputMatrixFile.OpenFile;
 begin
   if TMatrixReaderFormat.FileExists(FileProperties) then
@@ -84,9 +112,9 @@ begin
       LogFile.InputFile('Line '+Line.ToString,FileProperties.Path(TMatrixFormat.FileProperty));
     end;
     // Create reader
-    case Selection.Status of
-      fsIndexed: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Indices.Selection,Size);
-      fsLabeled: Reader := TMatrixRowsReader.Create(FileProperties,Selection.Labels.Selection,Size);
+    case Status of
+      fsIndexed: Reader := TMatrixRowsReader.Create(FileProperties,Indices,Size);
+      fsLabeled: Reader := TMatrixRowsReader.Create(FileProperties,Labels,Size);
     end;
   end else
     raise Exception.Create('File does not exist (' + TMatrixFormat.FileName(FileProperties,false) + ')');
@@ -104,63 +132,17 @@ end;
 
 Function TInputMatrixFile.CreateMatrix(const [ref] MatrixProperties: TKeyValuePairs): TScriptMatrixRow;
 begin
-  // Get reference type
-  var Indexed := MatrixProperties.Contains('index');
-  var Labeled := MatrixProperties.Contains('label');
-  if (not Indexed) and (not Labeled) then raise Exception.Create('Missing matrix reference');
-  if Indexed and Labeled then raise Exception.Create('Ambiguous matrix reference');
-  // Update file status
-  case Selection.Status of
-    fsUnused:
-      begin
-        if Indexed and (not Labeled) then
-        begin
-          // Create index selection
-          Selection.Status := fsIndexed;
-          Selection.Indices := TMatrixIndexSelection.Create;
-        end else
-        if (not Indexed) and Labeled then
-        begin
-          // Create label selection
-          Selection.Status := fsLabeled;
-          Selection.Labels := TMatrixLabelSelection.Create;
-        end;
-      end;
-    fsIndexed:
-        if Labeled then raise Exception.Create('Matrix index expected');
-    fsLabeled:
-        if Indexed then raise Exception.Create('Matrix label expected');
-  end;
-  // Create matrix
-  var Id := MatrixProperties.Int('id');
-  var Matrix := TInputMatrixRow.Create(Id);
+  SetStatus(ReferenceStatus(MatrixProperties));
+  var Matrix := TInputMatrixRow.Create(MatrixProperties.Int('id'));
   Matrix.Tag := MatrixProperties.ToStr('tag','');
   Matrix.MatrixFile := Self;
-  // Update selection
-  case Selection.Status of
-    fsIndexed:
-      begin
-        var Indx := MatrixProperties.Int('index')-1;
-        Matrix.MatrixIndex := Selection.Indices.Selection.Length;
-        Selection.Indices.Selection.Append([Indx]);
-      end;
-    fsLabeled:
-      begin
-        var Lbl := MatrixProperties.Str('label');
-        Matrix.MatrixIndex := Selection.Labels.Selection.Length;
-        Selection.Labels.Selection.Append([Lbl]);
-      end;
-  end;
+  Matrix.MatrixIndex := SelectMatrix(MatrixProperties);
   Result := Matrix;
 end;
 
 Destructor TInputMatrixFile.Destroy;
 begin
   Reader.Free;
-  case Selection.Status of
-    fsIndexed: Selection.Indices.Free;
-    fsLabeled: Selection.Labels.Free;
-  end;
   inherited Destroy;
 end;
 

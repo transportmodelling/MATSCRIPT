@@ -87,6 +87,12 @@ Type
     [TestCase('Negative','-1')]
     [TestCase('TooLarge','16')]
     Procedure Round_InvalidDigits_LogsInvalidDigits(const Digits: String);
+    [Test]
+    [TestCase('Missing','file=1; id=2,,Missing matrix reference')]
+    [TestCase('Ambiguous','file=1; index=1; label=A; id=2,,Ambiguous matrix reference')]
+    [TestCase('IndexExpected','file=1; index=1; id=2,file=1; label=A; id=3,Matrix index expected')]
+    [TestCase('LabelExpected','file=1; label=A; id=2,file=1; index=1; id=3,Matrix label expected')]
+    Procedure Matrix_InvalidReference_LogsReferenceError(const First,Second,Message: String);
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -480,6 +486,20 @@ begin
           ['round','  matrix: 1','  digits: ' + Digits,'  id: 2']);
   Assert.AreEqual(1,ErrorCount);
   Assert.IsTrue(LogContains('run.log','Invalid digits value (' + Digits + ')'),TFile.ReadAllText(FilePath('run.log')));
+end;
+
+Procedure TInterpreterTests.Matrix_InvalidReference_LogsReferenceError(const First,Second,Message: String);
+// The matrices of a file are all referenced by index, or all by label
+Var
+  Lines: TArray<String>;
+begin
+  Lines := ['init','  size: 3','  log: run.log',
+            'read','  file: input.csv','  format: txt','  delim: comma','  header: false','  id: 1',
+            'matrix ' + First];
+  if Second <> '' then Lines := Lines + ['matrix ' + Second];
+  Execute(Lines);
+  Assert.AreEqual(1,ErrorCount);
+  Assert.IsTrue(LogContains('run.log',Message),TFile.ReadAllText(FilePath('run.log')));
 end;
 
 initialization

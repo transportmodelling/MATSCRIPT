@@ -25,8 +25,8 @@ Type
     FDelimiter: TDelimiter;
   strict protected
     Procedure Initialize(var Totals: TMatrixTotals); override;
-    Procedure Update(MatrixId,Row,Column: Integer; Value: Float64; var Totals: TMatrixTotals); overload; override;
-    Procedure LogInfo(Totals: TMatrixTotals); overload; override;
+    Procedure UpdateStats(MatrixId,Row,Column: Integer; Value: Float64; var Totals: TMatrixTotals); override;
+    Procedure LogStats(Totals: TMatrixTotals); override;
   public
     Constructor Create(const FileName: TFileName; Delimiter: TDelimiter; const Matrices: array of TScriptMatrixRow);
   public
@@ -51,13 +51,13 @@ begin
   Totals.ColumnTotals.Length := Size;
 end;
 
-Procedure TMatrixTotalsLogger.Update(MatrixId,Row,Column: Integer; Value: Float64; var Totals: TMatrixTotals);
+Procedure TMatrixTotalsLogger.UpdateStats(MatrixId,Row,Column: Integer; Value: Float64; var Totals: TMatrixTotals);
 begin
   Totals.RowTotals[Row].Add(Value);
   Totals.ColumnTotals[column].Add(Value);
 end;
 
-Procedure TMatrixTotalsLogger.LogInfo(Totals: TMatrixTotals);
+Procedure TMatrixTotalsLogger.LogStats(Totals: TMatrixTotals);
 begin
   var Writer := TStreamWriter.Create(FFileName);
   try

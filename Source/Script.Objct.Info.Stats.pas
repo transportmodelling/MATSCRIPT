@@ -23,8 +23,8 @@ Type
   TMatrixStatisticsLogger = Class(TCustomMatrixStatistics<TMatrixStatistics>)
   strict protected
     Procedure Initialize(var Stats: TMatrixStatistics); override;
-    Procedure Update(MatrixId,Row,Column: Integer; Value: Float64; var Stats: TMatrixStatistics); overload; override;
-    Procedure LogInfo(Stats: TMatrixStatistics); overload; override;
+    Procedure UpdateStats(MatrixId,Row,Column: Integer; Value: Float64; var Stats: TMatrixStatistics); override;
+    Procedure LogStats(Stats: TMatrixStatistics); override;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -37,7 +37,7 @@ begin
   Stats.Max := NegInfinity;
 end;
 
-Procedure TMatrixStatisticsLogger.Update(MatrixId,Row,Column: Integer; Value: Float64; var Stats: TMatrixStatistics);
+Procedure TMatrixStatisticsLogger.UpdateStats(MatrixId,Row,Column: Integer; Value: Float64; var Stats: TMatrixStatistics);
 begin
   // Update minimum
   if Value < Stats.Min then
@@ -64,7 +64,7 @@ begin
   Stats.Total := Stats.Total + Value;
 end;
 
-Procedure TMatrixStatisticsLogger.LogInfo(Stats: TMatrixStatistics);
+Procedure TMatrixStatisticsLogger.LogStats(Stats: TMatrixStatistics);
 begin
   LogFile.Log;
   LogFile.Log('Matrices: ' + MatrixSelectionString);

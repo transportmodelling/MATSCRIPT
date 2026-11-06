@@ -36,16 +36,16 @@ Type
     Procedure UpdateCell(MatrixId,Row,Column: Integer; Value: Float64);
   strict protected
     Procedure Initialize(var Stats: StatsType); virtual; abstract;
-    Procedure Update(MatrixId,Row,Column: Integer; Value: Float64; var Stats: StatsType); overload; virtual; abstract;
+    Procedure UpdateStats(MatrixId,Row,Column: Integer; Value: Float64; var Stats: StatsType); virtual; abstract;
     Function Dependencies(Dependency: Integer): TScriptObject; override;
-    Procedure LogInfo(Stats: StatsType); overload; virtual; abstract;
+    Procedure LogStats(Stats: StatsType); virtual; abstract;
   public
     Constructor Create(const Matrices: array of TScriptMatrixRow); overload;
     Constructor Create(const Rows,Columns: TRanges; const Matrices: array of TScriptMatrixRow); overload;
-    Procedure Update(Row: Integer); overload; override;
+    Procedure Update(Row: Integer); override;
     Function  MatrixSelectionCount: Integer;
     Function  MatrixSelectionString: String;
-    Procedure LogInfo; overload; override;
+    Procedure LogInfo; override;
   end;
 
   TSumOfAbsoluteDifferences = Class(TInfoLogger)
@@ -123,7 +123,7 @@ end;
 Procedure TCustomMatrixStatistics<StatsType>.UpdateCell(MatrixId,Row,Column: Integer; Value: Float64);
 // Row and Column locate the cell within its matrix
 begin
-  if RowSelected[Row] and ColumnSelected[Column] then Update(MatrixId,Row,Column,Value,Stats);
+  if RowSelected[Row] and ColumnSelected[Column] then UpdateStats(MatrixId,Row,Column,Value,Stats);
 end;
 
 Function TCustomMatrixStatistics<StatsType>.Dependencies(Dependency: Integer): TScriptObject;
@@ -161,7 +161,7 @@ end;
 
 Procedure TCustomMatrixStatistics<StatsType>.LogInfo;
 begin
-  LogInfo(Stats);
+  LogStats(Stats);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////

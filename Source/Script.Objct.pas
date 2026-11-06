@@ -24,7 +24,7 @@ Type
   strict protected
     FNDependencies: Integer;
     Procedure SetStage;
-    Function Dependencies(Dependency: Integer): TScriptObject; virtual; abstract;
+    Function Dependencies(Dependency: Integer): TScriptObject; virtual;
   public
     Class Var Size: Integer;
     Class Var MaxStage: Integer;
@@ -87,6 +87,13 @@ begin
     if Stage > FStage then FStage := Stage;
   end;
   if FStage > MaxStage then MaxStage := FStage;
+end;
+
+Function TScriptObject.Dependencies(Dependency: Integer): TScriptObject;
+// An object depends on nothing, unless a descendant sets FNDependencies and
+// overrides this method; it is called for the dependencies below FNDependencies only
+begin
+  raise EArgumentOutOfRangeException.Create('Invalid dependency ' + Dependency.ToString);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -51,6 +51,13 @@ Type
     Procedure InterpretTotalsCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretCompareCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretWriteCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure ActivateStage(const Stage: Integer);
+    Procedure OpenStageFiles(const Stage: Integer);
+    Procedure ReadRow(const Stage,Row: Integer);
+    Procedure UpdateRow(const Stage,Row: Integer);
+    Procedure WriteRow(const Stage: Integer);
+    Procedure CloseStageFiles(const Stage: Integer);
+    Procedure ExecuteStage(const Stage: Integer);
   strict protected
     Procedure InitializeRun; override;
     Procedure InterpretInitCommand(const [ref] Arguments: TKeyValuePairs); override;
@@ -446,6 +453,72 @@ begin
   LogFile.OutputFile('Line: '+LineNr.ToString,Arguments.Path(TMatrixFormat.FileProperty));
 end;
 
+Procedure TMatrixScriptInterpreter.ActivateStage(const Stage: Integer);
+// Activating the objects of a stage activates the objects they depend on,
+// among them the input files that are read in this stage
+begin
+  for var InfoLogger in InfoLoggers do
+  if InfoLogger.Stage = Stage then InfoLogger.Active[Stage] := true;
+  for var StagedObject in StagedObjects do
+  if StagedObject.Stage = Stage then StagedObject.Active[Stage] := true;
+  for var OutputFile in OutputMatrixFiles do
+  if OutputFile.Stage = Stage then OutputFile.Active[Stage] := true;
+end;
+
+Procedure TMatrixScriptInterpreter.OpenStageFiles(const Stage: Integer);
+// The tags of input matrices come from their opened input files, and are
+// written to the output files
+begin
+  for var InputFile in InputMatrixFiles do
+  if InputFile.Active[Stage] then InputFile.OpenFile;
+  for var Matrix in Matrices do Matrix.UpdateTag;
+  for var OutputFile in OutputMatrixFiles do
+  if OutputFile.Active[Stage] then OutputFile.OpenFile;
+end;
+
+Procedure TMatrixScriptInterpreter.ReadRow(const Stage,Row: Integer);
+begin
+  for var InputFile in InputMatrixFiles do
+  if InputFile.Active[Stage] then InputFile.Read;
+  for var Matrix in Matrices do Matrix.Row := Row;
+end;
+
+Procedure TMatrixScriptInterpreter.UpdateRow(const Stage,Row: Integer);
+begin
+  for var InfoLogger in InfoLoggers do
+  if InfoLogger.Active[Stage] then InfoLogger.Update(Row);
+  for var StagedObject in StagedObjects do
+  if StagedObject.Active[Stage] then StagedObject.Update(Row);
+end;
+
+Procedure TMatrixScriptInterpreter.WriteRow(const Stage: Integer);
+begin
+  for var OutputFile in OutputMatrixFiles do
+  if OutputFile.Stage = Stage then OutputFile.Write;
+end;
+
+Procedure TMatrixScriptInterpreter.CloseStageFiles(const Stage: Integer);
+begin
+  for var InputFile in InputMatrixFiles do
+  if InputFile.Active[Stage] then InputFile.CloseFile;
+  for var OutputFile in OutputMatrixFiles do
+  if OutputFile.Active[Stage] then OutputFile.CloseFile;
+end;
+
+Procedure TMatrixScriptInterpreter.ExecuteStage(const Stage: Integer);
+// Iterates once over all rows, for the objects of the stage and those they depend on
+begin
+  ActivateStage(Stage);
+  OpenStageFiles(Stage);
+  for var Row := 0 to TScriptObject.Size-1 do
+  begin
+    ReadRow(Stage,Row);
+    UpdateRow(Stage,Row);
+    WriteRow(Stage);
+  end;
+  CloseStageFiles(Stage);
+end;
+
 Function TMatrixScriptInterpreter.InterpretCommand(const Command: String; const [ref] Arguments: TKeyValuePairs): Boolean;
 begin
   Result := true;
@@ -466,56 +539,8 @@ end;
 
 Procedure TMatrixScriptInterpreter.RunCompleted;
 begin
-  for var Stage := 0 to TScriptObject.MaxStage do
-  begin
-    // Activate staged objects.
-    // This will activate required input files for this stage.
-    for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do
-    if InfoLoggers[InfoLogger].Stage = Stage then
-    InfoLoggers[InfoLogger].Active[Stage] := true;
-    for var StagedObject := low(StagedObjects) to high(StagedObjects) do
-    if StagedObjects[StagedObject].Stage = Stage then
-    StagedObjects[StagedObject].Active[Stage] := true;
-    for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
-    if OutputMatrixFiles[MatrixFl].Stage = Stage then OutputMatrixFiles[MatrixFl].Active[Stage] := true;
-    // Open input files
-    for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
-    if InputMatrixFiles[MatrixFl].Active[Stage] then InputMatrixFiles[MatrixFl].OpenFile;
-    // Update Tags
-    for var Matrix := low(Matrices) to high(Matrices) do Matrices[Matrix].UpdateTag;
-    // Open output files for this stage.
-    for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
-    if OutputMatrixFiles[MatrixFl].Active[Stage] then OutputMatrixFiles[MatrixFl].OpenFile;
-    // Iterate rows
-    for var Row := 0 to TScriptObject.Size-1 do
-    begin
-      // Read input matrices
-      for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
-      if InputMatrixFiles[MatrixFl].Active[Stage] then InputMatrixFiles[MatrixFl].Read;
-      // Set matrix rows
-      for var Matrix := low(Matrices) to high(Matrices) do Matrices[Matrix].Row := Row;
-      // Update info loggers
-      for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do
-      if InfoLoggers[InfoLogger].Active[Stage] then
-      InfoLoggers[InfoLogger].Update(Row);
-      // Update (other) staged objects
-      for var StagedObject := low(StagedObjects) to high(StagedObjects) do
-      if StagedObjects[StagedObject].Active[Stage] then
-      StagedObjects[StagedObject].Update(Row);
-      // Write output files
-      for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
-      if OutputMatrixFiles[MatrixFl].Stage = Stage then
-      OutputMatrixFiles[MatrixFl].Write;
-    end;
-    // Close input files
-    for var MatrixFl := low(InputMatrixFiles) to high(InputMatrixFiles) do
-    if InputMatrixFiles[MatrixFl].Active[Stage] then InputMatrixFiles[MatrixFl].CloseFile;
-    // Close output files
-    for var MatrixFl := low(OutputMatrixFiles) to high(OutputMatrixFiles) do
-    if OutputMatrixFiles[MatrixFl].Active[Stage] then OutputMatrixFiles[MatrixFl].CloseFile;
-  end;
-  // Log info
-  for var InfoLogger := low(InfoLoggers) to high(InfoLoggers) do InfoLoggers[InfoLogger].LogInfo;
+  for var Stage := 0 to TScriptObject.MaxStage do ExecuteStage(Stage);
+  for var InfoLogger in InfoLoggers do InfoLogger.LogInfo;
 end;
 
 Procedure TMatrixScriptInterpreter.FinalizeRun;

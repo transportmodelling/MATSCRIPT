@@ -84,23 +84,22 @@ Type
     Function GetValues(const Column: Integer): Float64; override; final;
   end;
 
-  TMergedMatrixRow = Class(TScriptMatrixRow)
-  private
-    Rows: TArray<TScriptMatrixRow>;
+  TCustomCombinedMatrixRow = Class(TScriptMatrixRow)
+  // Combines the cells of several matrix rows; descendants combine them by an operation
   strict protected
+    Rows: TArray<TScriptMatrixRow>;
     Function Dependencies(Dependency: Integer): TScriptObject; override;
   public
     Constructor Create(Id: Integer; Symmetric,Transposed: Boolean; const MatrixRows: array of TScriptMatrixRow);
+  end;
+
+  TMergedMatrixRow = Class(TCustomCombinedMatrixRow)
+  public
     Function GetValues(const Column: Integer): Float64; override; final;
   end;
 
-  TProductMatrixRow = Class(TScriptMatrixRow)
-  private
-    Rows: TArray<TScriptMatrixRow>;
-  strict protected
-    Function Dependencies(Dependency: Integer): TScriptObject; override;
+  TProductMatrixRow = Class(TCustomCombinedMatrixRow)
   public
-    Constructor Create(Id: Integer; Symmetric,Transposed: Boolean; const MatrixRows: array of TScriptMatrixRow);
     Function GetValues(const Column: Integer): Float64; override; final;
   end;
 
@@ -228,7 +227,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Constructor TMergedMatrixRow.Create(Id: Integer; Symmetric,Transposed: Boolean; const MatrixRows: array of TScriptMatrixRow);
+Constructor TCustomCombinedMatrixRow.Create(Id: Integer; Symmetric,Transposed: Boolean; const MatrixRows: array of TScriptMatrixRow);
 begin
   inherited Create(Id);
   FNDependencies := Length(MatrixRows);
@@ -245,10 +244,12 @@ begin
   SetStage;
 end;
 
-Function TMergedMatrixRow.Dependencies(Dependency: Integer): TScriptObject;
+Function TCustomCombinedMatrixRow.Dependencies(Dependency: Integer): TScriptObject;
 begin
   Result := Rows[Dependency];
 end;
+
+////////////////////////////////////////////////////////////////////////////////
 
 Function TMergedMatrixRow.GetValues(const Column: Integer): Float64;
 begin
@@ -257,28 +258,6 @@ begin
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
-
-Constructor TProductMatrixRow.Create(Id: Integer; Symmetric,Transposed: Boolean; const MatrixRows: array of TScriptMatrixRow);
-begin
-  inherited Create(Id);
-  FNDependencies := Length(MatrixRows);
-  if Symmetric then FSymmetric := true else FTransposed := Transposed;
-  // Set Rows and check Symmetric and Transposed-flags
-  SetLength(Rows,FNDependencies);
-  for var Row := low(MatrixRows) to high(MatrixRows) do
-  begin
-    Rows[Row] := MatrixRows[Row];
-    if Symmetric and not Rows[Row].Symmetric then raise Exception.Create('Matrix must be symmetric');
-    if Transposed and not (Rows[Row].Symmetric or Rows[Row].Transposed) then raise Exception.Create('Matrix must be transposed');
-    if not Transposed and Rows[Row].Transposed then raise Exception.Create('Matrix must not be transposed');
-  end;
-  SetStage;
-end;
-
-Function TProductMatrixRow.Dependencies(Dependency: Integer): TScriptObject;
-begin
-  Result := Rows[Dependency];
-end;
 
 Function TProductMatrixRow.GetValues(const Column: Integer): Float64;
 begin

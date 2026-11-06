@@ -51,6 +51,7 @@ Type
     [Test] Procedure Multiply_InputAndTransposed_MultipliesCells;
     [Test] Procedure Transpose_MergedWithTransposed_SwapsRowsAndColumns;
     [Test] Procedure Write_InputAndMemoryMatrix_WritesBothInNextStage;
+    [Test] Procedure Merge_UnusedMemoryMatrix_ReadsNoInput;
 
     // Info commands
     [Test] Procedure Totals_InputMatrix_WritesRowAndColumnTotals;
@@ -319,6 +320,16 @@ begin
     Assert.AreEqual(InputValue(Row,Column),Parser.Float[2],Tolerance,'Matrix 1');
     Assert.AreEqual(InputValue(Row,Column)+InputValue(Column,Row),Parser.Float[3],Tolerance,'Matrix 3');
   end;
+end;
+
+Procedure TInterpreterTests.Merge_UnusedMemoryMatrix_ReadsNoInput;
+// Matrix 3 is held in memory but used by no result, so its missing input file is not read
+begin
+  Execute(InitCommand +
+          ['read','  file: missing.csv','  format: txt','  delim: comma','  header: false','  id: 1','  ids: 1'] +
+          ['transpose','  matrix: 1','  id: 2'] +
+          ['merge','  matrices: 1,2','  id: 3']);
+  Assert.AreEqual(0,ErrorCount);
 end;
 
 Procedure TInterpreterTests.Totals_InputMatrix_WritesRowAndColumnTotals;

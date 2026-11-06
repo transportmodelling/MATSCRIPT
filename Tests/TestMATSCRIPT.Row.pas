@@ -61,6 +61,7 @@ Type
     // Activation
     [Test] Procedure Active_Dependent_ActivatesDependenciesUpToStagedObject;
     [Test] Procedure Active_LaterStage_EndsEarlierStage;
+    [Test] Procedure Require_Dependent_RequiresItsDependencies;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -246,6 +247,20 @@ begin
   Assert.IsTrue(Scaled.Active[1],'Scaled in stage 1');
   Assert.IsFalse(Source.Active[0],'Source in stage 0');
   Assert.IsTrue(Source.Active[1],'Source in stage 1');
+end;
+
+Procedure TMatrixRowTests.Require_Dependent_RequiresItsDependencies;
+// Requiring passes staged objects, unlike activating
+begin
+  var Source := Keep(TConstantMatrixRow.Create(1,1.0));
+  var MemMatrix := Keep(TMemMatrix.Create([Source],moSum));
+  var Reader := Keep(TMemMatrixReader.Create(2,MemMatrix));
+  var Unused := Keep(TMemMatrix.Create([Source],moProduct));
+  Reader.Require;
+  Assert.IsTrue(Reader.Required,'Reader');
+  Assert.IsTrue(MemMatrix.Required,'Memory matrix');
+  Assert.IsTrue(Source.Required,'Source');
+  Assert.IsFalse(Unused.Required,'Unused memory matrix');
 end;
 
 initialization

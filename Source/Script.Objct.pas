@@ -17,7 +17,9 @@ Uses
 Type
   TScriptObject = Class
   private
-    FStage,ActiveStage: Integer;
+    FStage: Integer;
+    FRequired: Boolean;
+    ActiveStage: Integer;
     Function GetActive(Stage: integer): Boolean;
     Procedure SetActive(Stage: Integer; Active: Boolean);
     Function DependentsStage: Integer; virtual;
@@ -30,8 +32,10 @@ Type
     Class Var MaxStage: Integer;
   public
     Constructor Create;
+    Procedure Require;
   public
     Property Stage: Integer read FStage;
+    Property Required: Boolean read FRequired;
     Property Active[Stage: Integer]: Boolean read GetActive write SetActive;
     Property NDependencies: Integer read FNDependencies;
   end;
@@ -94,6 +98,17 @@ Function TScriptObject.Dependencies(Dependency: Integer): TScriptObject;
 // overrides this method; it is called for the dependencies below FNDependencies only
 begin
   raise EArgumentOutOfRangeException.Create('Invalid dependency ' + Dependency.ToString);
+end;
+
+Procedure TScriptObject.Require;
+// Marks the object and all objects it depends on as required by a result of
+// the script, also past staged objects
+begin
+  if not FRequired then
+  begin
+    FRequired := true;
+    for var Dependency := 0 to FNDependencies-1 do Dependencies(Dependency).Require;
+  end;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////

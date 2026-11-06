@@ -51,6 +51,8 @@ Type
     Procedure InterpretTotalsCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretCompareCommand(const [ref] Arguments: TKeyValuePairs);
     Procedure InterpretWriteCommand(const [ref] Arguments: TKeyValuePairs);
+    Procedure RequireResults;
+    Procedure ActivateStagedObjects(const Stage: Integer);
     Procedure ActivateStage(const Stage: Integer);
     Procedure OpenStageFiles(const Stage: Integer);
     Procedure ReadRow(const Stage,Row: Integer);
@@ -452,14 +454,28 @@ begin
   LogFile.OutputFile('Line: '+LineNr.ToString,Arguments.Path(TMatrixFormat.FileProperty));
 end;
 
+Procedure TMatrixScriptInterpreter.RequireResults;
+// The info loggers and output files are the results of a run
+begin
+  for var InfoLogger in InfoLoggers do InfoLogger.Require;
+  for var OutputFile in OutputMatrixFiles do OutputFile.Require;
+end;
+
+Procedure TMatrixScriptInterpreter.ActivateStagedObjects(const Stage: Integer);
+// A staged object that no result requires is left out, as are the input files
+// it would read
+begin
+  for var StagedObject in StagedObjects do
+  if (StagedObject.Stage = Stage) and StagedObject.Required then StagedObject.Active[Stage] := true;
+end;
+
 Procedure TMatrixScriptInterpreter.ActivateStage(const Stage: Integer);
 // Activating the objects of a stage activates the objects they depend on,
 // among them the input files that are read in this stage
 begin
   for var InfoLogger in InfoLoggers do
   if InfoLogger.Stage = Stage then InfoLogger.Active[Stage] := true;
-  for var StagedObject in StagedObjects do
-  if StagedObject.Stage = Stage then StagedObject.Active[Stage] := true;
+  ActivateStagedObjects(Stage);
   for var OutputFile in OutputMatrixFiles do
   if OutputFile.Stage = Stage then OutputFile.Active[Stage] := true;
 end;
@@ -538,6 +554,7 @@ end;
 
 Procedure TMatrixScriptInterpreter.RunCompleted;
 begin
+  RequireResults;
   for var Stage := 0 to TScriptObject.MaxStage do ExecuteStage(Stage);
   for var InfoLogger in InfoLoggers do InfoLogger.LogInfo;
 end;

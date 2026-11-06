@@ -50,10 +50,12 @@ Type
     [Test] Procedure Merge_InputAndTransposed_AddsCells;
     [Test] Procedure Multiply_InputAndTransposed_MultipliesCells;
     [Test] Procedure Transpose_MergedWithTransposed_SwapsRowsAndColumns;
+    [Test] Procedure Write_InputAndMemoryMatrix_WritesBothInNextStage;
 
     // Info commands
     [Test] Procedure Totals_InputMatrix_WritesRowAndColumnTotals;
     [Test] Procedure Stats_InputMatrix_LogsTotalAndDiagonal;
+    [Test] Procedure Stats_MemoryMatrix_LogsTotalInNextStage;
     [Test]
     [TestCase('Rows','rows,63')]
     [TestCase('Columns','columns,36')]
@@ -298,6 +300,27 @@ begin
                                   end);
 end;
 
+Procedure TInterpreterTests.Write_InputAndMemoryMatrix_WritesBothInNextStage;
+// Matrix 3 is held in memory, so the output file is written in stage 1. The
+// input file is read in stage 0 to fill matrix 3, and again in stage 1 for matrix 1.
+begin
+  Execute(InitCommand + ReadCommand +
+          ['transpose','  matrix: 1','  id: 2'] +
+          ['merge','  matrices: 1,2','  id: 3'] +
+          ['write','  matrices: 1,3','  file: both.csv','  format: txt','  delim: comma','  header: false']);
+  Assert.AreEqual(0,ErrorCount);
+  var Lines := TFile.ReadAllLines(FilePath('both.csv'));
+  Assert.AreEqual<Integer>(Size*Size,Length(Lines));
+  for var Line in Lines do
+  begin
+    var Parser := TStringParser.Create(Comma,Line);
+    var Row := Parser.Int[0]-1;
+    var Column := Parser.Int[1]-1;
+    Assert.AreEqual(InputValue(Row,Column),Parser.Float[2],Tolerance,'Matrix 1');
+    Assert.AreEqual(InputValue(Row,Column)+InputValue(Column,Row),Parser.Float[3],Tolerance,'Matrix 3');
+  end;
+end;
+
 Procedure TInterpreterTests.Totals_InputMatrix_WritesRowAndColumnTotals;
 // Row i totals 30*i+6 and column j totals 60+3*j
 begin
@@ -321,6 +344,17 @@ begin
   Execute(['init','  size: 3','  log: run.log'] + ReadCommand + ['stats','  matrices: 1']);
   Assert.IsTrue(LogContains('run.log','Total: 198'),'Total');
   Assert.IsTrue(LogContains('run.log','Diagonal: 66'),'Diagonal');
+end;
+
+Procedure TInterpreterTests.Stats_MemoryMatrix_LogsTotalInNextStage;
+// Matrix 3 sums the input matrix and its transposed, which totals 2*198
+begin
+  Execute(['init','  size: 3','  log: run.log'] + ReadCommand +
+          ['transpose','  matrix: 1','  id: 2'] +
+          ['merge','  matrices: 1,2','  id: 3'] +
+          ['stats','  matrices: 3']);
+  Assert.AreEqual(0,ErrorCount);
+  Assert.IsTrue(LogContains('run.log','Total: 396'),TFile.ReadAllText(FilePath('run.log')));
 end;
 
 Procedure TInterpreterTests.Stats_TransposedSelection_SelectsTransposedCells(const Key: String; const Total: Integer);

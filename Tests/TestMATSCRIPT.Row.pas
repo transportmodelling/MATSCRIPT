@@ -57,6 +57,10 @@ Type
     [Test] Procedure MemMatrixReader_UpdatedMatrix_ReadsCells;
     [Test] Procedure MemMatrixReader_StagedMatrix_UsesNextStage;
     [Test] Procedure MemMatrix_MemMatrixReaderSource_UsesReaderStage;
+
+    // Activation
+    [Test] Procedure Active_Dependent_ActivatesDependenciesUpToStagedObject;
+    [Test] Procedure Active_LaterStage_EndsEarlierStage;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -215,6 +219,33 @@ begin
   Assert.AreEqual(1,NextMemMatrix.Stage);
   Assert.AreEqual(2,NextReader.Stage);
   Assert.AreEqual(2,TScriptObject.MaxStage);
+end;
+
+Procedure TMatrixRowTests.Active_Dependent_ActivatesDependenciesUpToStagedObject;
+// The memory matrix is filled in stage 0, so activating its reader for stage 1
+// leaves the memory matrix and its source inactive
+begin
+  var Source := Keep(TConstantMatrixRow.Create(1,1.0));
+  var MemMatrix := Keep(TMemMatrix.Create([Source],moSum));
+  var Reader := Keep(TMemMatrixReader.Create(2,MemMatrix));
+  var Scaled := Keep(TScaledMatrixRow.Create(3,2.0,Reader));
+  Scaled.Active[1] := true;
+  Assert.IsTrue(Scaled.Active[1],'Scaled');
+  Assert.IsTrue(Reader.Active[1],'Reader');
+  Assert.IsFalse(MemMatrix.Active[1],'Memory matrix');
+  Assert.IsFalse(Source.Active[1],'Source');
+end;
+
+Procedure TMatrixRowTests.Active_LaterStage_EndsEarlierStage;
+begin
+  var Source := Keep(TConstantMatrixRow.Create(1,1.0));
+  var Scaled := Keep(TScaledMatrixRow.Create(2,2.0,Source));
+  Scaled.Active[0] := true;
+  Scaled.Active[1] := true;
+  Assert.IsFalse(Scaled.Active[0],'Scaled in stage 0');
+  Assert.IsTrue(Scaled.Active[1],'Scaled in stage 1');
+  Assert.IsFalse(Source.Active[0],'Source in stage 0');
+  Assert.IsTrue(Source.Active[1],'Source in stage 1');
 end;
 
 initialization
